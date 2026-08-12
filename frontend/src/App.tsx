@@ -195,12 +195,6 @@ export default function App() {
         <button className="new-chat-button" onClick={() => { setMessages([]); setError(null); }}>
           <Plus className="w-4 h-4" /> New conversation
         </button>
-        <div className="scope-card">
-          <strong>Prototype scope</strong>
-          <span>Weather-aware agricultural guidance for East African smallholder farmers.</span>
-        </div>
-        <LanguageMenu language={language} disabled={loading} onChange={switchLanguage} compact />
-        <p className="prototype-label">Non-commercial school prototype</p>
       </aside>
 
       <section className="conversation-panel">

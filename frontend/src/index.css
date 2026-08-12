@@ -25,7 +25,7 @@
 .app-shell {
   height: 100dvh;
   display: grid;
-  grid-template-columns: 250px minmax(0, 1fr);
+  grid-template-columns: 210px minmax(0, 1fr);
   background: #f3f5f0;
   overflow: hidden;
 }
@@ -33,7 +33,7 @@
 .workspace-sidebar {
   display: flex;
   flex-direction: column;
-  padding: 24px 18px 18px;
+  padding: 22px 14px;
   color: #263426;
   background: #eef1ea;
   border-right: 1px solid #dfe4da;
@@ -49,7 +49,7 @@
   border-radius: 11px;
 }
 
-.brand-copy { display: flex; flex-direction: column; margin: -36px 0 28px 48px; }
+.brand-copy { display: flex; flex-direction: column; margin: -36px 0 24px 48px; }
 .brand-copy strong { font-size: 15px; letter-spacing: -.02em; }
 .brand-copy span { color: #788276; font-size: 11px; margin-top: 2px; }
 
@@ -79,14 +79,6 @@
 .language-menu { position: relative; }
 .language-menu-compact { margin-top: 8px; }
 .language-menu-compact .sidebar-settings { margin-top: 0; }
-
-.scope-card {
-  display: flex; flex-direction: column; gap: 6px; margin-top: auto; padding: 14px;
-  color: #536050; background: rgba(255,255,255,.48); border: 1px solid #dbe1d6; border-radius: 11px;
-}
-.scope-card strong { color: #344332; font-size: 11px; }
-.scope-card span { font-size: 10px; line-height: 1.5; }
-.prototype-label { margin: 8px 11px 0; color: #929990; font-size: 9px; }
 
 .conversation-panel {
   width: min(900px, 100%); height: 100dvh; margin: 0 auto;
@@ -162,7 +154,7 @@
 .error-card span { flex: 1; }
 .error-card button { padding: 6px 9px; color: #7d332b; background: white; border: 1px solid #e8c6bf; border-radius: 7px; font-size: 10px; font-weight: 650; }
 
-.context-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px clamp(20px, 7vw, 72px); border-top: 1px solid #ecefeb; }
+.context-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px clamp(20px, 7vw, 72px); border-top: 1px solid #ecefeb; }
 .context-bar button { display: flex; align-items: center; gap: 6px; padding: 6px 8px; color: #707a6e; background: transparent; border: 0; border-radius: 8px; font-size: 10px; }
 .context-bar button:hover { background: #eff3ed; }
 .context-bar button.location-active { color: #2d5a27; }
@@ -172,9 +164,9 @@
 .quick-action { display: flex; align-items: center; gap: 6px; padding: 7px 10px; color: #61705e; background: transparent; border: 1px solid #dfe4dc; border-radius: 9px; font-size: 11px; font-weight: 550; white-space: nowrap; }
 .quick-action:hover { color: #2d5a27; border-color: #9bb395; background: #f2f6f0; }
 
-.composer-wrap { padding: 4px clamp(20px, 7vw, 72px) 18px; background: #fbfcfa; }
+.composer-wrap { padding: 2px clamp(20px, 7vw, 72px) 12px; background: #fbfcfa; }
 .composer { display: flex; gap: 8px; padding: 8px; background: white; border: 1px solid #dce2d9; border-radius: 15px; box-shadow: 0 8px 24px rgba(45,60,42,.06); }
-.message-input { width: 100%; min-height: 44px; max-height: 120px; padding: 11px 8px; color: #293328; background: transparent; border: 0; outline: 0; resize: none; font-size: 13px; }
+.message-input { width: 100%; min-height: 40px; max-height: 104px; padding: 9px 8px; color: #293328; background: transparent; border: 0; outline: 0; resize: none; font-size: 13px; }
 .message-input::placeholder { color: #9aa297; }
 .composer:focus-within { border-color: #91aa8b; box-shadow: 0 0 0 3px rgba(45,90,39,.08); }
 .composer-actions { display: flex; align-items: flex-end; gap: 6px; }
