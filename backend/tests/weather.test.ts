@@ -108,6 +108,36 @@ describe('Weather cache', () => {
 
     expect(getForecast).toHaveBeenCalledTimes(1);
   });
+
+  it('evicts the least recently used forecast at the configured limit', async () => {
+    const forecast = {
+      coordinates: { latitude: 0, longitude: 0 },
+      timezone: 'Africa/Kampala',
+      fetchedAt: '2026-08-12T00:00:00.000Z',
+      current: {
+        observedAt: '2026-08-12T03:00',
+        temperatureCelsius: 24,
+        precipitationMillimeters: 0,
+        rainMillimeters: 0,
+        weatherCode: 2,
+        windSpeedKilometersPerHour: 8,
+        windGustKilometersPerHour: 12,
+      },
+      daily: [],
+      source: 'open-meteo',
+      attribution: 'Weather data by Open-Meteo.com',
+    } satisfies WeatherForecast;
+    const getForecast = vi.fn(async () => forecast);
+    const cachedProvider = createCachedWeatherProvider({ getForecast }, 600, 2);
+
+    await cachedProvider.getForecast({ latitude: 0, longitude: 0 });
+    await cachedProvider.getForecast({ latitude: 1, longitude: 1 });
+    await cachedProvider.getForecast({ latitude: 0, longitude: 0 });
+    await cachedProvider.getForecast({ latitude: 2, longitude: 2 });
+    await cachedProvider.getForecast({ latitude: 1, longitude: 1 });
+
+    expect(getForecast).toHaveBeenCalledTimes(4);
+  });
 });
 
 describe('Weather risks', () => {

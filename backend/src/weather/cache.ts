@@ -6,7 +6,11 @@ interface CacheEntry {
   forecast: WeatherForecast;
 }
 
-export function createCachedWeatherProvider(provider: WeatherProvider, ttlSeconds: number): WeatherProvider {
+export function createCachedWeatherProvider(
+  provider: WeatherProvider,
+  ttlSeconds: number,
+  maximumEntries = 250,
+): WeatherProvider {
   const cache = new Map<string, CacheEntry>();
 
   return {
@@ -16,10 +20,19 @@ export function createCachedWeatherProvider(provider: WeatherProvider, ttlSecond
       const now = Date.now();
 
       if (existingEntry && existingEntry.expiresAt > now) {
+        cache.delete(key);
+        cache.set(key, existingEntry);
         return existingEntry.forecast;
       }
 
       const forecast = await provider.getForecast(coordinates);
+
+      while (cache.size >= maximumEntries) {
+        const oldestKey = cache.keys().next().value;
+        if (oldestKey === undefined) break;
+        cache.delete(oldestKey);
+      }
+
       cache.set(key, {
         forecast,
         expiresAt: now + ttlSeconds * 1000,

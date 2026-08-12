@@ -69,7 +69,11 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     timeoutMilliseconds: options.environment.WEATHER_TIMEOUT_MS,
   });
   const weatherProvider = options.weatherProvider
-    ?? createCachedWeatherProvider(openMeteoProvider, options.environment.WEATHER_CACHE_TTL_SECONDS);
+    ?? createCachedWeatherProvider(
+      openMeteoProvider,
+      options.environment.WEATHER_CACHE_TTL_SECONDS,
+      options.environment.WEATHER_CACHE_MAX_ENTRIES,
+    );
   const providerAdvisoryService = options.advisoryService
     ?? (options.environment.GROQ_API_KEY
       ? createGroqAdvisoryService({
