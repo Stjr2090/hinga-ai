@@ -1,4 +1,4 @@
-name: Build backend image
+name: Build application images
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - backend/**
-      - frontend/package.json
+      - frontend/**
       - package.json
       - package-lock.json
       - .dockerignore
@@ -48,3 +48,14 @@ jobs:
           tags: |
             hingaaiacr.azurecr.io/hinga-backend:${{ github.sha }}
             hingaaiacr.azurecr.io/hinga-backend:latest
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: frontend/Dockerfile
+          push: true
+          build-args: |
+            VITE_API_BASE_URL=https://hinga-backend.wittyplant-ea872425.italynorth.azurecontainerapps.io
+          tags: |
+            hingaaiacr.azurecr.io/hinga-frontend:${{ github.sha }}
+            hingaaiacr.azurecr.io/hinga-frontend:latest
