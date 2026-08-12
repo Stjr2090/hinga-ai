@@ -7,7 +7,7 @@ import type { Environment } from './config/environment.js';
 import { registerChatRoute } from './routes/chat.js';
 import { registerHealthRoute } from './routes/health.js';
 import { registerWeatherRoute } from './routes/weather.js';
-import { createMockAdvisoryService, type AdvisoryService } from './services/advisory.js';
+import type { AdvisoryService } from './services/advisory.js';
 import { createGroqAdvisoryService } from './services/groqAdvisory.js';
 import { createLocalizedAdvisoryService } from './services/localizedAdvisory.js';
 import { createWeatherAwareAdvisoryService } from './services/weatherAwareAdvisory.js';
@@ -77,7 +77,11 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
           model: options.environment.GROQ_MODEL,
           timeoutMilliseconds: options.environment.ADVISORY_TIMEOUT_MS,
         })
-      : createMockAdvisoryService());
+      : null);
+
+  if (!providerAdvisoryService) {
+    throw new Error('GROQ_API_KEY is required when no advisory service is provided.');
+  }
   const baseAdvisoryService = options.environment.GROQ_API_KEY && !options.advisoryService
     ? createWeatherAwareAdvisoryService(providerAdvisoryService, weatherProvider)
     : providerAdvisoryService;

@@ -40,6 +40,15 @@ const testWeatherProvider: WeatherProvider = {
   },
 };
 
+const testAdvisoryService: AdvisoryService = {
+  async generate() {
+    return {
+      answer: 'Test agricultural guidance.',
+      source: 'groq',
+    };
+  },
+};
+
 async function createTestApp(
   weatherProvider: WeatherProvider = testWeatherProvider,
   advisoryService?: AdvisoryService,
@@ -48,7 +57,11 @@ async function createTestApp(
     NODE_ENV: 'test',
     LOG_LEVEL: 'silent',
   });
-  const app = await buildApp({ environment, weatherProvider, advisoryService });
+  const app = await buildApp({
+    environment,
+    weatherProvider,
+    advisoryService: advisoryService ?? testAdvisoryService,
+  });
   applications.push(app);
   return app;
 }
@@ -58,6 +71,16 @@ afterEach(async () => {
 });
 
 describe('HINGA backend', () => {
+  it('requires an advisory provider', async () => {
+    const environment = loadEnvironment({
+      NODE_ENV: 'test',
+      LOG_LEVEL: 'silent',
+    });
+
+    await expect(buildApp({ environment, weatherProvider: testWeatherProvider }))
+      .rejects.toThrow('GROQ_API_KEY is required');
+  });
+
   it('reports service health', async () => {
     const app = await createTestApp();
     const response = await app.inject({ method: 'GET', url: '/health' });
@@ -87,7 +110,7 @@ describe('HINGA backend', () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       language: 'en',
-      source: 'mock',
+      source: 'groq',
     });
     expect(response.json().requestId).toBeTruthy();
   });

@@ -10,7 +10,7 @@ export interface AdvisoryRequest extends ChatRequest {
 
 export interface AdvisoryResult {
   answer: string;
-  source: 'mock' | 'groq';
+  source: 'groq';
   sources?: Array<{
     provider: 'open-meteo';
     attribution: 'Weather data by Open-Meteo.com';
@@ -42,15 +42,4 @@ export class AdvisoryWeatherUnavailableError extends Error {
     super('Verified weather data is unavailable.');
     this.name = 'AdvisoryWeatherUnavailableError';
   }
-}
-
-export function createMockAdvisoryService(): AdvisoryService {
-  return {
-    async generate() {
-      return {
-        answer: 'HINGA backend is connected. Advisory providers are not configured yet.',
-        source: 'mock',
-      };
-    },
-  };
 }

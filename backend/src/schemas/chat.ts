@@ -17,7 +17,7 @@ export const chatResponseSchema = z.object({
   requestId: z.string().min(1),
   answer: z.string().min(1),
   language: supportedLanguageSchema,
-  source: z.enum(['mock', 'groq']),
+  source: z.literal('groq'),
   sources: z.array(z.object({
     provider: z.literal('open-meteo'),
     attribution: z.literal('Weather data by Open-Meteo.com'),

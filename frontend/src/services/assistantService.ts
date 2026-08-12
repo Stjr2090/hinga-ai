@@ -16,7 +16,7 @@ export interface ChatResponse {
   requestId: string;
   answer: string;
   language: SupportedLanguage;
-  source: 'mock' | 'groq';
+  source: 'groq';
   sources?: AdvisorySource[];
 }
 
