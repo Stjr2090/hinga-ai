@@ -1,0 +1,88 @@
+name: Backend CI and deploy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - backend/**
+      - package.json
+      - package-lock.json
+      - .dockerignore
+      - .github/workflows/backend.yml
+  workflow_dispatch:
+
+concurrency:
+  group: hinga-backend-production
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AZURE_RESOURCE_GROUP: hinga-ai-student-rg
+  AZURE_CONTAINER_APP: hinga-backend
+  AZURE_REGISTRY: hingaaiacr
+  IMAGE: hingaaiacr.azurecr.io/hinga-backend
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate backend types
+        run: npm run lint --workspace backend
+
+      - name: Test backend
+        run: npm test --workspace backend
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign in to Azure Container Registry
+        run: az acr login --name "$AZURE_REGISTRY"
+
+      - name: Build and publish backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: true
+          tags: ${{ env.IMAGE }}:${{ github.sha }}
+
+      - name: Deploy backend image
+        shell: bash
+        run: |
+          REVISION_SUFFIX="sha-${GITHUB_SHA:0:7}-${GITHUB_RUN_ATTEMPT}"
+          az containerapp update \
+            --name "$AZURE_CONTAINER_APP" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --image "$IMAGE:$GITHUB_SHA" \
+            --revision-suffix "$REVISION_SUFFIX" \
+            --only-show-errors \
+            --output none
+
+      - name: Verify backend health
+        shell: bash
+        run: |
+          URL="https://hinga-backend.wittyplant-ea872425.italynorth.azurecontainerapps.io/health"
+          for attempt in {1..12}; do
+            if curl --fail --silent --show-error "$URL"; then
+              exit 0
+            fi
+            sleep 5
+          done
+          exit 1
