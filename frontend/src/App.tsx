@@ -123,9 +123,6 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastQuestion, setLastQuestion] = useState<string | null>(null);
-  const endRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), [messages, loading]);
 
   const chooseLanguage = (next: SupportedLanguage) => {
     saveLanguage(next);
@@ -243,7 +240,6 @@ export default function App() {
           ))}
           {loading && <div className="sms-bubble sms-assistant loading-message"><span /><span /><span /> {copy.thinking}</div>}
           {error && <div className="error-card"><AlertCircle className="w-4 h-4" /><span>{error}</span>{lastQuestion && <button onClick={() => send(lastQuestion)}>Retry</button>}</div>}
-          <div ref={endRef} />
         </main>
 
         <div className="context-bar">

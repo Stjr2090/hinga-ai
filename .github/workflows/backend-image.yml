@@ -29,6 +29,8 @@ jobs:
           cache: npm
 
       - run: npm ci
+      - run: npm run lint --workspace frontend
+      - run: npm test --workspace frontend
       - run: npm run lint --workspace backend
       - run: npm test --workspace backend
 
