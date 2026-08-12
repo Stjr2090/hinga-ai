@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, CloudRain, Globe, Leaf, MapPin, Plus, Send, ShieldCheck } from 'lucide-react';
+import { AlertCircle, Check, ChevronDown, CloudRain, Globe, Leaf, MapPin, Plus, Send, ShieldCheck } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
   AssistantServiceError,
@@ -40,6 +40,63 @@ function savedLanguage(): SupportedLanguage | null {
   return value === 'en' || value === 'lg' ? value : null;
 }
 
+function LanguageMenu({ language, disabled, onChange, compact = false }: {
+  language: SupportedLanguage;
+  disabled: boolean;
+  onChange: (language: SupportedLanguage) => void;
+  compact?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', closeOnOutsideClick);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('mousedown', closeOnOutsideClick);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [open]);
+
+  return (
+    <div className={`language-menu ${compact ? 'language-menu-compact' : ''}`} ref={menuRef}>
+      <button
+        type="button"
+        className={compact ? 'sidebar-settings' : 'language-switch'}
+        onClick={() => setOpen((current) => !current)}
+        disabled={disabled}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <Globe className="w-4 h-4" /> {COPY[language].name} <ChevronDown className="language-chevron" />
+      </button>
+      {open && (
+        <div className="language-popover" role="menu" aria-label="Choose response language">
+          {(['en', 'lg'] as SupportedLanguage[]).map((option) => (
+            <button
+              type="button"
+              role="menuitemradio"
+              aria-checked={language === option}
+              key={option}
+              onClick={() => { onChange(option); setOpen(false); }}
+            >
+              <span><strong>{COPY[option].name}</strong><small>{option === 'en' ? 'English' : 'Oluganda'}</small></span>
+              {language === option && <Check className="w-4 h-4" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   const [language, setLanguage] = useState<SupportedLanguage | null>(savedLanguage);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -58,6 +115,14 @@ export default function App() {
     setLanguage(next);
     setMessages([]);
     setError(null);
+  };
+
+  const switchLanguage = (next: SupportedLanguage) => {
+    if (next === language || loading) return;
+    localStorage.setItem(LANGUAGE_KEY, next);
+    setLanguage(next);
+    setError(null);
+    setLastQuestion(null);
   };
 
   const requestLocation = () => {
@@ -134,9 +199,7 @@ export default function App() {
           <strong>Prototype scope</strong>
           <span>Weather-aware agricultural guidance for East African smallholder farmers.</span>
         </div>
-        <button className="sidebar-settings" onClick={() => setLanguage(null)}>
-          <Globe className="w-4 h-4" /> {copy.name}
-        </button>
+        <LanguageMenu language={language} disabled={loading} onChange={switchLanguage} compact />
         <p className="prototype-label">Non-commercial school prototype</p>
       </aside>
 
@@ -146,7 +209,7 @@ export default function App() {
             <div className="mobile-brand-mark"><Leaf className="w-5 h-5" /></div>
             <div><h1>Hinga Assistant</h1><p><span className="status-dot" /> Agricultural advisory</p></div>
           </div>
-          <button className="language-switch" onClick={() => setLanguage(null)}><Globe className="w-4 h-4" /> {copy.name}</button>
+          <LanguageMenu language={language} disabled={loading} onChange={switchLanguage} />
         </header>
 
         <main className="message-list">
