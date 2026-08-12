@@ -188,6 +188,12 @@
 .language-options small { color: #849082; font-size: 9px; }
 .privacy-note { display: flex; align-items: center; gap: 7px; margin: 19px 0 0; color: #8a9288; font-size: 9px; }
 
+.recovery-screen { min-height: 100dvh; display: grid; place-items: center; padding: 24px; background: #f3f5f0; }
+.recovery-card { width: min(420px, 100%); padding: 32px; background: #fbfcfa; border: 1px solid #e1e5de; border-radius: 18px; text-align: center; }
+.recovery-card h1 { margin: 0; color: #233122; font-size: 24px; }
+.recovery-card p { margin: 12px 0 22px; color: #687166; font-size: 13px; line-height: 1.6; }
+.recovery-card button { padding: 10px 16px; color: white; background: #2d5a27; border: 0; border-radius: 10px; font-weight: 650; }
+
 .char-counter {
   @apply font-mono;
 }

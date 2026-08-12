@@ -49,8 +49,16 @@ export async function getAssistantResponse(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message, language, ...(location ? { location } : {}) }),
+      signal: AbortSignal.timeout(30000),
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'TimeoutError') {
+      throw new AssistantServiceError(
+        'HINGA is taking longer than expected. Please retry your question.',
+        'REQUEST_TIMEOUT',
+      );
+    }
+
     throw new AssistantServiceError(
       'Hinga could not reach the advisory service. Check your connection and try again.',
       'NETWORK_ERROR',

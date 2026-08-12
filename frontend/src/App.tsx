@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, Check, ChevronDown, CloudRain, Globe, Leaf, MapPin, Plus, Send, ShieldCheck } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
 import {
   AssistantServiceError,
   getAssistantResponse,
@@ -36,8 +35,26 @@ const STARTERS: Record<SupportedLanguage, string[]> = {
 };
 
 function savedLanguage(): SupportedLanguage | null {
-  const value = localStorage.getItem(LANGUAGE_KEY);
-  return value === 'en' || value === 'lg' ? value : null;
+  try {
+    const value = localStorage.getItem(LANGUAGE_KEY);
+    return value === 'en' || value === 'lg' ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveLanguage(language: SupportedLanguage) {
+  try {
+    localStorage.setItem(LANGUAGE_KEY, language);
+  } catch {
+    return;
+  }
+}
+
+function messageId() {
+  return typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 function LanguageMenu({ language, disabled, onChange, compact = false }: {
@@ -111,7 +128,7 @@ export default function App() {
   useEffect(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), [messages, loading]);
 
   const chooseLanguage = (next: SupportedLanguage) => {
-    localStorage.setItem(LANGUAGE_KEY, next);
+    saveLanguage(next);
     setLanguage(next);
     setMessages([]);
     setError(null);
@@ -119,7 +136,7 @@ export default function App() {
 
   const switchLanguage = (next: SupportedLanguage) => {
     if (next === language || loading) return;
-    localStorage.setItem(LANGUAGE_KEY, next);
+    saveLanguage(next);
     setLanguage(next);
     setError(null);
     setLastQuestion(null);
@@ -146,7 +163,7 @@ export default function App() {
     const clean = question.trim();
     if (!clean || !language || loading) return;
 
-    setMessages((current) => [...current, { id: crypto.randomUUID(), text: clean, sender: 'farmer' }]);
+    setMessages((current) => [...current, { id: messageId(), text: clean, sender: 'farmer' }]);
     setInput('');
     setError(null);
     setLastQuestion(clean);
@@ -218,14 +235,12 @@ export default function App() {
             </div>
           )}
 
-          <AnimatePresence initial={false}>
-            {messages.map((message) => (
-              <motion.article key={message.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className={`sms-bubble ${message.sender === 'farmer' ? 'sms-farmer' : 'sms-assistant'}`}>
+          {messages.map((message) => (
+              <article key={message.id} className={`sms-bubble ${message.sender === 'farmer' ? 'sms-farmer' : 'sms-assistant'}`}>
                 {message.text}
                 {message.source && <small className="source-note"><CloudRain className="w-3 h-3" /> {message.source.attribution} · {new Date(message.source.fetchedAt).toLocaleString()}</small>}
-              </motion.article>
-            ))}
-          </AnimatePresence>
+              </article>
+          ))}
           {loading && <div className="sms-bubble sms-assistant loading-message"><span /><span /><span /> {copy.thinking}</div>}
           {error && <div className="error-card"><AlertCircle className="w-4 h-4" /><span>{error}</span>{lastQuestion && <button onClick={() => send(lastQuestion)}>Retry</button>}</div>}
           <div ref={endRef} />
