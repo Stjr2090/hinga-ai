@@ -71,6 +71,11 @@ afterEach(async () => {
 });
 
 describe('HINGA backend', () => {
+  it('requires production provider credentials', () => {
+    expect(() => loadEnvironment({ NODE_ENV: 'production' }))
+      .toThrow('GROQ_API_KEY, SUNBIRD_API_TOKEN required in production');
+  });
+
   it('requires an advisory provider', async () => {
     const environment = loadEnvironment({
       NODE_ENV: 'test',

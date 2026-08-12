@@ -28,5 +28,16 @@ export function loadEnvironment(values: NodeJS.ProcessEnv = process.env): Enviro
     throw new Error(`Invalid backend configuration: ${issues}`);
   }
 
+  if (result.data.NODE_ENV === 'production') {
+    const missingProviders = [
+      !result.data.GROQ_API_KEY && 'GROQ_API_KEY',
+      !result.data.SUNBIRD_API_TOKEN && 'SUNBIRD_API_TOKEN',
+    ].filter(Boolean);
+
+    if (missingProviders.length > 0) {
+      throw new Error(`Invalid backend configuration: ${missingProviders.join(', ')} required in production`);
+    }
+  }
+
   return result.data;
 }
