@@ -29,7 +29,6 @@ const sunbirdResponseSchema = z.union([
 const languageCodes: Record<SupportedLanguage, string> = {
   en: 'eng',
   lg: 'lug',
-  sw: 'swa',
 };
 
 export interface SunbirdTranslationOptions {

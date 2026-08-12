@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const supportedLanguageSchema = z.enum(['en', 'lg', 'sw']);
+export const supportedLanguageSchema = z.enum(['en', 'lg']);
 
 export const coordinatesSchema = z.object({
   latitude: z.number().min(-90).max(90),

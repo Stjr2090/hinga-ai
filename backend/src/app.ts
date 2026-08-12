@@ -93,7 +93,6 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
           baseUrl: options.environment.SUNBIRD_BASE_URL,
           timeoutMilliseconds: options.environment.TRANSLATION_TIMEOUT_MS,
         }),
-        new Set(['lg']),
       )
     : baseAdvisoryService;
   await registerChatRoute(app, advisoryService);

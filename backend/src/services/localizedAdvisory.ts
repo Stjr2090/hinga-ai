@@ -1,4 +1,4 @@
-import type { SupportedLanguage, TranslationProvider } from '../translation/types.js';
+import type { TranslationProvider } from '../translation/types.js';
 import { TranslationUnavailableError } from '../translation/types.js';
 import {
   AdvisoryLanguageUnavailableError,
@@ -9,16 +9,11 @@ import {
 export function createLocalizedAdvisoryService(
   advisoryService: AdvisoryService,
   translationProvider: TranslationProvider,
-  translatedLanguages: ReadonlySet<SupportedLanguage>,
 ): AdvisoryService {
   return {
     async generate(request) {
       if (request.language === 'en') {
         return advisoryService.generate(request);
-      }
-
-      if (!translatedLanguages.has(request.language)) {
-        throw new AdvisoryLanguageUnavailableError();
       }
 
       try {
