@@ -43,7 +43,7 @@ export function createLocalizedAdvisoryService(
         }
 
         if (error instanceof TranslationUnavailableError) {
-          throw new AdvisoryUnavailableError();
+          throw new AdvisoryUnavailableError('sunbird');
         }
 
         throw error;

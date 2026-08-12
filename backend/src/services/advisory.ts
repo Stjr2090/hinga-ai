@@ -24,7 +24,7 @@ export interface AdvisoryService {
 }
 
 export class AdvisoryUnavailableError extends Error {
-  constructor() {
+  constructor(readonly provider: 'groq' | 'sunbird' = 'groq') {
     super('The advisory service is unavailable.');
     this.name = 'AdvisoryUnavailableError';
   }

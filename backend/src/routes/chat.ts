@@ -47,7 +47,7 @@ export async function registerChatRoute(app: FastifyInstance, advisoryService: A
       }
 
       if (error instanceof AdvisoryUnavailableError) {
-        request.log.warn('Advisory provider unavailable');
+        request.log.warn({ provider: error.provider }, 'Advisory provider unavailable');
         return reply.status(503).send({
           error: {
             code: 'ADVISORY_UNAVAILABLE',

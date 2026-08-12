@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { AdvisoryService } from '../src/services/advisory.js';
 import { createLocalizedAdvisoryService } from '../src/services/localizedAdvisory.js';
-import type { TranslationProvider } from '../src/translation/types.js';
+import { TranslationUnavailableError, type TranslationProvider } from '../src/translation/types.js';
 
 describe('Localized advisory service', () => {
   it('translates Luganda into English and the advisory back into Luganda', async () => {
@@ -61,6 +61,18 @@ describe('Localized advisory service', () => {
 
     await expect(service.generate({ message: 'Enkuba enaatonya?', language: 'lg' }))
       .resolves.toMatchObject({ sources });
+  });
+
+  it('labels translation provider failures', async () => {
+    const service = createLocalizedAdvisoryService(
+      { generate: vi.fn() },
+      {
+        translate: vi.fn().mockRejectedValue(new TranslationUnavailableError()),
+      },
+    );
+
+    await expect(service.generate({ message: 'Nsimbe ddi?', language: 'lg' }))
+      .rejects.toMatchObject({ provider: 'sunbird' });
   });
 
 });
