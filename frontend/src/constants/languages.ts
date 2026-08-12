@@ -12,7 +12,7 @@ export interface LanguageStrings {
 
 export const LANGUAGE_DATA: Record<string, LanguageStrings> = {
   'English': {
-    welcome: "Welcome to Shamba AI. I am your agricultural advisor.",
+    welcome: "Welcome to HINGA AI Assistant. I am your agricultural advisor.",
     selectLanguage: "Please select your language by replying with a number:",
     mainMenu: "Main Menu (English):",
     askDirect: "Please type your question directly.",
@@ -29,7 +29,7 @@ export const LANGUAGE_DATA: Record<string, LanguageStrings> = {
     ]
   },
   'Swahili': {
-    welcome: "Karibu Shamba AI. Mimi ni mshauri wako wa kilimo.",
+    welcome: "Karibu HINGA AI Assistant. Mimi ni mshauri wako wa kilimo.",
     selectLanguage: "Tafadhali chagua lugha yako kwa kujibu na namba:",
     mainMenu: "Menu Kuu (Kiswahili):",
     askDirect: "Tafadhali andika swali lako moja kwa moja.",
@@ -46,7 +46,7 @@ export const LANGUAGE_DATA: Record<string, LanguageStrings> = {
     ]
   },
   'Luganda': {
-    welcome: "Kulaba Shamba AI. Nze mubi wa kulima wo.",
+    welcome: "Kulaba HINGA AI Assistant. Nze mubi wa kulima wo.",
     selectLanguage: "Londa olulimi lwo nga oddamu n'ennamba:",
     mainMenu: "Menu Enkulu (Luganda):",
     askDirect: "Wandiika ekibuuzo kyo wano.",
@@ -62,10 +62,8 @@ export const LANGUAGE_DATA: Record<string, LanguageStrings> = {
       { id: '5', question: 'Nnyinza ntya okuziyiza ettaka okutwalibwa amazzi?', answer: 'Sima emikutu gy\'amazzi mu nnimiro. Simba ebisubi oba emiti. Bikka ettaka n\'ebisubi leero.' },
     ]
   },
-  // Adding placeholders for other languages to be filled by AI or expanded later
-  // For the sake of this task, I will provide the structure for all.
   'Runyankole': {
-    welcome: "Muryeho Shamba AI. Ndi omuhabuzi wawe w'eby'obuhingi.",
+    welcome: "Muryeho HINGA AI Assistant. Ndi omuhabuzi wawe w'eby'obuhingi.",
     selectLanguage: "Toorana orulimi rwawe omu kugarukamu n'enamba:",
     mainMenu: "Menu Enkuru (Runyankole):",
     askDirect: "Handiika ekibuuzo kyawe aha.",
@@ -82,7 +80,7 @@ export const LANGUAGE_DATA: Record<string, LanguageStrings> = {
     ]
   },
   'Rukiga': {
-    welcome: "Muryeho Shamba AI. Ndi omuhabuzi wawe w'eby'obuhingi.",
+    welcome: "Muryeho HINGA AI Assistant. Ndi omuhabuzi wawe w'eby'obuhingi.",
     selectLanguage: "Toorana orulimi rwawe omu kugarukamu n'enamba:",
     mainMenu: "Menu Enkuru (Rukiga):",
     askDirect: "Handiika ekibuuzo kyawe aha.",
@@ -99,7 +97,7 @@ export const LANGUAGE_DATA: Record<string, LanguageStrings> = {
     ]
   },
   'Ateso': {
-    welcome: "Yoga Shamba AI. Arau akai k'aswam kon.",
+    welcome: "Yoga HINGA AI Assistant. Arau akai k'aswam kon.",
     selectLanguage: "Koseu akituk kon ko kigir namba:",
     mainMenu: "Menu Na Apolon (Ateso):",
     askDirect: "Kigir aingiset kon ne.",
@@ -116,7 +114,7 @@ export const LANGUAGE_DATA: Record<string, LanguageStrings> = {
     ]
   },
   'Luo/Acholi': {
-    welcome: "Itye Shamba AI. An aye latic piri me pur.",
+    welcome: "Itye HINGA AI Assistant. An aye latic piri me pur.",
     selectLanguage: "Yer leb ma imito ki namba:",
     mainMenu: "Menu Madit (Luo/Acholi):",
     askDirect: "Coo lapeny ni kany.",
@@ -133,7 +131,7 @@ export const LANGUAGE_DATA: Record<string, LanguageStrings> = {
     ]
   },
   'Kinyarwanda': {
-    welcome: "Murakaza neza kuri Shamba AI. Ndi umujyanama wawe mu buhinzi.",
+    welcome: "Murakaza neza kuri HINGA AI Assistant. Ndi umujyanama wawe mu buhinzi.",
     selectLanguage: "Hitamo ururimi rwawe ukoresheje nimero:",
     mainMenu: "Menu Nkuru (Kinyarwanda):",
     askDirect: "Andika ikibazo cyawe hano.",
@@ -150,7 +148,7 @@ export const LANGUAGE_DATA: Record<string, LanguageStrings> = {
     ]
   },
   'Kikuyu': {
-    welcome: "Wimwega Shamba AI. Ndi mutaarani waku wa urimi.",
+    welcome: "Wimwega HINGA AI Assistant. Ndi mutaarani waku wa urimi.",
     selectLanguage: "Thuura ruthiomi rwaku na namba:",
     mainMenu: "Menu nene (Kikuyu):",
     askDirect: "Andika kiuria giaku haha.",
@@ -167,7 +165,7 @@ export const LANGUAGE_DATA: Record<string, LanguageStrings> = {
     ]
   },
   'Somali': {
-    welcome: "Ku soo dhawaada Shamba AI. Waxaan ahay la-taliyahaaga beeraha.",
+    welcome: "Ku soo dhawaada HINGA AI Assistant. Waxaan ahay la-taliyahaaga beeraha.",
     selectLanguage: "Fadlan dooro luqaddaada adoo isticmaalaya lambar:",
     mainMenu: "Menu-ka Weyn (Somali):",
     askDirect: "Fadlan halkan ku qor su'aashaada.",

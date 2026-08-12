@@ -1,9 +1,0 @@
-{
-  "name": "Shamba AI",
-  "description": "Intelligent agricultural weather advisory assistant for East African smallholder farmers.",
-  "requestFramePermissions": [
-    "camera",
-    "microphone",
-    "geolocation"
-  ]
-}
