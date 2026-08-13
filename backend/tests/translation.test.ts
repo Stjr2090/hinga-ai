@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createSunbirdTranslationProvider } from '../src/translation/sunbird.js';
-import { TranslationUnavailableError } from '../src/translation/types.js';
+import { TranslationConfigurationError, TranslationUnavailableError } from '../src/translation/types.js';
 
 const options = {
   apiToken: 'test-token',
@@ -92,6 +92,54 @@ describe('Sunbird translation provider', () => {
     });
 
     expect(result.translatedText).toBe('Check the soil.');
+    expect(result).toMatchObject({ direction: 'en->en', durationMilliseconds: 0 });
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it('uses the registry code for experimental Runyankole fixtures', async () => {
+    const request = vi.fn().mockResolvedValue(createResponse({
+      translated_text: 'Ninteekateeka ryari ebicoori?',
+      source_language: 'eng',
+      target_language: 'nyn',
+      Error: null,
+    }));
+    const provider = createSunbirdTranslationProvider(options, request);
+
+    const result = await provider.translate({
+      text: 'When should I plant maize?',
+      sourceLanguage: 'en',
+      targetLanguage: 'nyn',
+    });
+
+    expect(result).toMatchObject({
+      translatedText: 'Ninteekateeka ryari ebicoori?',
+      direction: 'en->nyn',
+      source: 'sunbird',
+    });
+    expect(JSON.parse(request.mock.calls[0][1].body as string)).toMatchObject({
+      source_language: 'eng',
+      target_language: 'nyn',
+    });
+  });
+
+  it('returns a typed error for an unconfigured direction', async () => {
+    const request = vi.fn();
+    const provider = createSunbirdTranslationProvider(options, request);
+
+    await expect(provider.translate({
+      text: 'Test',
+      sourceLanguage: 'lg',
+      targetLanguage: 'nyn',
+    })).rejects.toMatchObject({
+      code: 'TRANSLATION_DIRECTION_UNSUPPORTED',
+      provider: 'sunbird',
+      direction: 'lg->nyn',
+    });
+    await expect(provider.translate({
+      text: 'Test',
+      sourceLanguage: 'lg',
+      targetLanguage: 'nyn',
+    })).rejects.toBeInstanceOf(TranslationConfigurationError);
     expect(request).not.toHaveBeenCalled();
   });
 

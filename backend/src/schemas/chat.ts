@@ -1,6 +1,9 @@
 import { z } from 'zod';
+import { isProductionLanguage, type ProductionLanguageCode } from '../languages/registry.js';
 
-export const supportedLanguageSchema = z.enum(['en', 'lg']);
+export const supportedLanguageSchema = z.custom<ProductionLanguageCode>(isProductionLanguage, {
+  message: 'Language is not available in production.',
+});
 
 export const coordinatesSchema = z.object({
   latitude: z.number().min(-90).max(90),

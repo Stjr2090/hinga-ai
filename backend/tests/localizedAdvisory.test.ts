@@ -63,10 +63,41 @@ describe('Localized advisory service', () => {
       .resolves.toMatchObject({ sources });
   });
 
+  it('runs an experimental Runyankole fixture through the reusable pipeline', async () => {
+    const generate = vi.fn().mockResolvedValue({ answer: 'Wait for reliable rain.', source: 'groq' });
+    const translate = vi.fn()
+      .mockResolvedValueOnce({ translatedText: 'Should I plant maize today?' })
+      .mockResolvedValueOnce({ translatedText: 'Rinda enjura erikwesigwa.' });
+    const service = createLocalizedAdvisoryService(
+      { generate },
+      { translate } as unknown as TranslationProvider,
+    );
+
+    await expect(service.generate({
+      message: 'Mbiibire ebicoori eriizooba?',
+      language: 'nyn',
+    })).resolves.toMatchObject({ answer: 'Rinda enjura erikwesigwa.' });
+    expect(generate).toHaveBeenCalledWith({
+      message: 'Should I plant maize today?',
+      language: 'en',
+    });
+    expect(translate).toHaveBeenNthCalledWith(1, {
+      text: 'Mbiibire ebicoori eriizooba?',
+      sourceLanguage: 'nyn',
+      targetLanguage: 'en',
+    });
+    expect(translate).toHaveBeenNthCalledWith(2, {
+      text: 'Wait for reliable rain.',
+      sourceLanguage: 'en',
+      targetLanguage: 'nyn',
+    });
+  });
+
   it('labels translation provider failures', async () => {
     const service = createLocalizedAdvisoryService(
       { generate: vi.fn() },
       {
+        provider: 'sunbird',
         translate: vi.fn().mockRejectedValue(new TranslationUnavailableError()),
       },
     );

@@ -135,6 +135,21 @@ describe('HINGA backend', () => {
     expect(response.json().error.code).toBe('VALIDATION_ERROR');
   });
 
+  it('keeps experimental languages outside the production API', async () => {
+    const app = await createTestApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/chat',
+      payload: {
+        message: 'Mbiibire ebicoori eriizooba?',
+        language: 'nyn',
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe('VALIDATION_ERROR');
+  });
+
   it('returns a safe response when the advisory provider is unavailable', async () => {
     const advisoryService: AdvisoryService = {
       async generate() {

@@ -1,5 +1,5 @@
 import type { TranslationProvider } from '../translation/types.js';
-import { TranslationUnavailableError } from '../translation/types.js';
+import { TranslationConfigurationError, TranslationUnavailableError } from '../translation/types.js';
 import {
   AdvisoryLanguageUnavailableError,
   AdvisoryUnavailableError,
@@ -38,7 +38,11 @@ export function createLocalizedAdvisoryService(
           answer: outgoing.translatedText,
         };
       } catch (error) {
-        if (error instanceof AdvisoryLanguageUnavailableError) {
+        if (error instanceof AdvisoryLanguageUnavailableError || error instanceof TranslationConfigurationError) {
+          if (error instanceof TranslationConfigurationError) {
+            throw new AdvisoryLanguageUnavailableError();
+          }
+
           throw error;
         }
 

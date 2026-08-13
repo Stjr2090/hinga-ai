@@ -1,7 +1,11 @@
-import type { ChatRequest } from '../schemas/chat.js';
+import type { LanguageCode } from '../languages/registry.js';
+import type { Coordinates } from '../schemas/chat.js';
 import type { WeatherForecast, WeatherRisk } from '../weather/types.js';
 
-export interface AdvisoryRequest extends ChatRequest {
+export interface AdvisoryRequest {
+  message: string;
+  language: LanguageCode;
+  location?: Coordinates;
   weather?: {
     forecast: WeatherForecast;
     risks: WeatherRisk[];

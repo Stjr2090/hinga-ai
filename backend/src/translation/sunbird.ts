@@ -1,7 +1,8 @@
 import { z } from 'zod';
+import { getProviderLanguageCode, supportsTranslationDirection } from '../languages/registry.js';
 import {
+  TranslationConfigurationError,
   TranslationUnavailableError,
-  type SupportedLanguage,
   type TranslationProvider,
   type TranslationResult,
 } from './types.js';
@@ -26,11 +27,6 @@ const sunbirdResponseSchema = z.union([
   }),
 ]);
 
-const languageCodes: Record<SupportedLanguage, string> = {
-  en: 'eng',
-  lg: 'lug',
-};
-
 export interface SunbirdTranslationOptions {
   apiToken: string;
   baseUrl: string;
@@ -42,14 +38,28 @@ export function createSunbirdTranslationProvider(
   request: typeof fetch = fetch,
 ): TranslationProvider {
   return {
+    provider: 'sunbird',
     async translate(translationRequest): Promise<TranslationResult> {
+      const direction = `${translationRequest.sourceLanguage}->${translationRequest.targetLanguage}` as const;
+
+      if (!supportsTranslationDirection(
+        translationRequest.sourceLanguage,
+        translationRequest.targetLanguage,
+      )) {
+        throw new TranslationConfigurationError('sunbird', direction);
+      }
+
       if (translationRequest.sourceLanguage === translationRequest.targetLanguage) {
         return {
           ...translationRequest,
           translatedText: translationRequest.text,
           source: 'sunbird',
+          direction,
+          durationMilliseconds: 0,
         };
       }
+
+      const startedAt = Date.now();
 
       try {
         const response = await request(`${options.baseUrl.replace(/\/$/, '')}/tasks/translate`, {
@@ -60,8 +70,8 @@ export function createSunbirdTranslationProvider(
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            source_language: languageCodes[translationRequest.sourceLanguage],
-            target_language: languageCodes[translationRequest.targetLanguage],
+            source_language: getProviderLanguageCode(translationRequest.sourceLanguage, 'sunbird'),
+            target_language: getProviderLanguageCode(translationRequest.targetLanguage, 'sunbird'),
             text: translationRequest.text,
           }),
           signal: AbortSignal.timeout(options.timeoutMilliseconds),
@@ -90,13 +100,15 @@ export function createSunbirdTranslationProvider(
           ...translationRequest,
           translatedText: payload.translated_text,
           source: 'sunbird',
+          direction,
+          durationMilliseconds: Date.now() - startedAt,
         };
       } catch (error) {
-        if (error instanceof TranslationUnavailableError) {
+        if (error instanceof TranslationUnavailableError || error instanceof TranslationConfigurationError) {
           throw error;
         }
 
-        throw new TranslationUnavailableError();
+        throw new TranslationUnavailableError('sunbird', direction);
       }
     },
   };
