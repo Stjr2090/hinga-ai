@@ -18,8 +18,23 @@ export interface TranslationProvider {
   translate(request: TranslationRequest): Promise<TranslationResult>;
 }
 
+export type TranslationDiagnosticOutcome = 'success' | 'bypassed' | 'failure';
+export type TranslationErrorCode =
+  | 'TRANSLATION_PROVIDER_UNAVAILABLE'
+  | 'TRANSLATION_DIRECTION_UNSUPPORTED';
+
+export interface TranslationDiagnostic {
+  provider: TranslationProviderName;
+  direction: `${LanguageCode}->${LanguageCode}`;
+  durationMilliseconds: number;
+  outcome: TranslationDiagnosticOutcome;
+  errorCode?: TranslationErrorCode;
+}
+
+export type TranslationDiagnosticReporter = (diagnostic: TranslationDiagnostic) => void;
+
 export class TranslationUnavailableError extends Error {
-  readonly code = 'TRANSLATION_PROVIDER_UNAVAILABLE';
+  readonly code: TranslationErrorCode = 'TRANSLATION_PROVIDER_UNAVAILABLE';
 
   constructor(
     readonly provider: TranslationProviderName = 'sunbird',
@@ -31,7 +46,7 @@ export class TranslationUnavailableError extends Error {
 }
 
 export class TranslationConfigurationError extends Error {
-  readonly code = 'TRANSLATION_DIRECTION_UNSUPPORTED';
+  readonly code: TranslationErrorCode = 'TRANSLATION_DIRECTION_UNSUPPORTED';
 
   constructor(
     readonly provider: TranslationProviderName,

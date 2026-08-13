@@ -3,6 +3,8 @@ import { getProviderLanguageCode, supportsTranslationDirection } from '../langua
 import {
   TranslationConfigurationError,
   TranslationUnavailableError,
+  type TranslationDiagnosticReporter,
+  type TranslationErrorCode,
   type TranslationProvider,
   type TranslationResult,
 } from './types.js';
@@ -31,6 +33,7 @@ export interface SunbirdTranslationOptions {
   apiToken: string;
   baseUrl: string;
   timeoutMilliseconds: number;
+  reportDiagnostic?: TranslationDiagnosticReporter;
 }
 
 export function createSunbirdTranslationProvider(
@@ -41,15 +44,27 @@ export function createSunbirdTranslationProvider(
     provider: 'sunbird',
     async translate(translationRequest): Promise<TranslationResult> {
       const direction = `${translationRequest.sourceLanguage}->${translationRequest.targetLanguage}` as const;
+      const startedAt = Date.now();
+      const report = (outcome: 'success' | 'bypassed' | 'failure', errorCode?: TranslationErrorCode) => {
+        options.reportDiagnostic?.({
+          provider: 'sunbird',
+          direction,
+          durationMilliseconds: Date.now() - startedAt,
+          outcome,
+          ...(errorCode ? { errorCode } : {}),
+        });
+      };
 
       if (!supportsTranslationDirection(
         translationRequest.sourceLanguage,
         translationRequest.targetLanguage,
       )) {
+        report('failure', 'TRANSLATION_DIRECTION_UNSUPPORTED');
         throw new TranslationConfigurationError('sunbird', direction);
       }
 
       if (translationRequest.sourceLanguage === translationRequest.targetLanguage) {
+        report('bypassed');
         return {
           ...translationRequest,
           translatedText: translationRequest.text,
@@ -59,7 +74,8 @@ export function createSunbirdTranslationProvider(
         };
       }
 
-      const startedAt = Date.now();
+      const sourceProviderCode = getProviderLanguageCode(translationRequest.sourceLanguage, 'sunbird');
+      const targetProviderCode = getProviderLanguageCode(translationRequest.targetLanguage, 'sunbird');
 
       try {
         const response = await request(`${options.baseUrl.replace(/\/$/, '')}/tasks/translate`, {
@@ -70,21 +86,21 @@ export function createSunbirdTranslationProvider(
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            source_language: getProviderLanguageCode(translationRequest.sourceLanguage, 'sunbird'),
-            target_language: getProviderLanguageCode(translationRequest.targetLanguage, 'sunbird'),
+            source_language: sourceProviderCode,
+            target_language: targetProviderCode,
             text: translationRequest.text,
           }),
           signal: AbortSignal.timeout(options.timeoutMilliseconds),
         });
 
         if (!response.ok) {
-          throw new TranslationUnavailableError();
+          throw new TranslationUnavailableError('sunbird', direction);
         }
 
         const parsedResponse = sunbirdResponseSchema.safeParse(await response.json());
 
         if (!parsedResponse.success) {
-          throw new TranslationUnavailableError();
+          throw new TranslationUnavailableError('sunbird', direction);
         }
 
         const result = 'translation' in parsedResponse.data
@@ -92,9 +108,15 @@ export function createSunbirdTranslationProvider(
           : parsedResponse.data;
         const payload = 'output' in result ? result.output : result;
 
-        if (payload.Error) {
-          throw new TranslationUnavailableError();
+        if (
+          payload.Error
+          || payload.source_language !== sourceProviderCode
+          || payload.target_language !== targetProviderCode
+        ) {
+          throw new TranslationUnavailableError('sunbird', direction);
         }
+
+        report('success');
 
         return {
           ...translationRequest,
@@ -104,11 +126,11 @@ export function createSunbirdTranslationProvider(
           durationMilliseconds: Date.now() - startedAt,
         };
       } catch (error) {
-        if (error instanceof TranslationUnavailableError || error instanceof TranslationConfigurationError) {
-          throw error;
-        }
-
-        throw new TranslationUnavailableError('sunbird', direction);
+        const providerError = error instanceof TranslationUnavailableError
+          ? error
+          : new TranslationUnavailableError('sunbird', direction);
+        report('failure', providerError.code);
+        throw providerError;
       }
     },
   };

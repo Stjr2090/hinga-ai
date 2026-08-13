@@ -17,13 +17,14 @@ function createResponse(translation: unknown, status = 200): Response {
 
 describe('Sunbird translation provider', () => {
   it('normalizes a direct translation response', async () => {
+    const reportDiagnostic = vi.fn();
     const request = vi.fn().mockResolvedValue(createResponse({
       translated_text: 'Ettaka kkalu.',
       source_language: 'eng',
       target_language: 'lug',
       Error: null,
     }));
-    const provider = createSunbirdTranslationProvider(options, request);
+    const provider = createSunbirdTranslationProvider({ ...options, reportDiagnostic }, request);
 
     await expect(provider.translate({
       text: 'The soil is dry.',
@@ -33,6 +34,14 @@ describe('Sunbird translation provider', () => {
       translatedText: 'Ettaka kkalu.',
       source: 'sunbird',
     });
+    expect(reportDiagnostic).toHaveBeenCalledWith(expect.objectContaining({
+      provider: 'sunbird',
+      direction: 'en->lg',
+      outcome: 'success',
+      durationMilliseconds: expect.any(Number),
+    }));
+    expect(JSON.stringify(reportDiagnostic.mock.calls)).not.toContain('The soil is dry.');
+    expect(JSON.stringify(reportDiagnostic.mock.calls)).not.toContain('test-token');
   });
 
   it('normalizes a completed task response', async () => {
@@ -83,8 +92,9 @@ describe('Sunbird translation provider', () => {
   });
 
   it('does not call Sunbird when both languages match', async () => {
+    const reportDiagnostic = vi.fn();
     const request = vi.fn();
-    const provider = createSunbirdTranslationProvider(options, request);
+    const provider = createSunbirdTranslationProvider({ ...options, reportDiagnostic }, request);
     const result = await provider.translate({
       text: 'Check the soil.',
       sourceLanguage: 'en',
@@ -93,6 +103,12 @@ describe('Sunbird translation provider', () => {
 
     expect(result.translatedText).toBe('Check the soil.');
     expect(result).toMatchObject({ direction: 'en->en', durationMilliseconds: 0 });
+    expect(reportDiagnostic).toHaveBeenCalledWith({
+      provider: 'sunbird',
+      direction: 'en->en',
+      durationMilliseconds: expect.any(Number),
+      outcome: 'bypassed',
+    });
     expect(request).not.toHaveBeenCalled();
   });
 
@@ -123,8 +139,9 @@ describe('Sunbird translation provider', () => {
   });
 
   it('returns a typed error for an unconfigured direction', async () => {
+    const reportDiagnostic = vi.fn();
     const request = vi.fn();
-    const provider = createSunbirdTranslationProvider(options, request);
+    const provider = createSunbirdTranslationProvider({ ...options, reportDiagnostic }, request);
 
     await expect(provider.translate({
       text: 'Test',
@@ -140,17 +157,69 @@ describe('Sunbird translation provider', () => {
       sourceLanguage: 'lg',
       targetLanguage: 'nyn',
     })).rejects.toBeInstanceOf(TranslationConfigurationError);
+    expect(reportDiagnostic).toHaveBeenCalledWith({
+      provider: 'sunbird',
+      direction: 'lg->nyn',
+      durationMilliseconds: expect.any(Number),
+      outcome: 'failure',
+      errorCode: 'TRANSLATION_DIRECTION_UNSUPPORTED',
+    });
     expect(request).not.toHaveBeenCalled();
   });
 
   it('rejects malformed provider output', async () => {
+    const reportDiagnostic = vi.fn();
     const request = vi.fn().mockResolvedValue(createResponse({ unexpected: true }));
-    const provider = createSunbirdTranslationProvider(options, request);
+    const provider = createSunbirdTranslationProvider({ ...options, reportDiagnostic }, request);
 
     await expect(provider.translate({
       text: 'Help',
       sourceLanguage: 'lg',
       targetLanguage: 'en',
     })).rejects.toBeInstanceOf(TranslationUnavailableError);
+    expect(reportDiagnostic).toHaveBeenCalledWith(expect.objectContaining({
+      provider: 'sunbird',
+      direction: 'lg->en',
+      outcome: 'failure',
+      errorCode: 'TRANSLATION_PROVIDER_UNAVAILABLE',
+    }));
+  });
+
+  it.each([
+    ['HTTP failure', vi.fn().mockResolvedValue(createResponse({}, 503))],
+    ['network failure', vi.fn().mockRejectedValue(new Error('offline'))],
+    ['provider error', vi.fn().mockResolvedValue(createResponse({
+      translated_text: 'Ignored',
+      source_language: 'lug',
+      target_language: 'eng',
+      Error: 'failed',
+    }))],
+    ['direction mismatch', vi.fn().mockResolvedValue(createResponse({
+      translated_text: 'Ignored',
+      source_language: 'eng',
+      target_language: 'lug',
+      Error: null,
+    }))],
+  ])('normalizes %s without leaking input into diagnostics', async (_name, request) => {
+    const reportDiagnostic = vi.fn();
+    const provider = createSunbirdTranslationProvider({ ...options, reportDiagnostic }, request);
+
+    await expect(provider.translate({
+      text: 'Private farmer question',
+      sourceLanguage: 'lg',
+      targetLanguage: 'en',
+    })).rejects.toMatchObject({
+      code: 'TRANSLATION_PROVIDER_UNAVAILABLE',
+      provider: 'sunbird',
+      direction: 'lg->en',
+    });
+    expect(reportDiagnostic).toHaveBeenCalledTimes(1);
+    expect(reportDiagnostic).toHaveBeenCalledWith(expect.objectContaining({
+      provider: 'sunbird',
+      direction: 'lg->en',
+      outcome: 'failure',
+      errorCode: 'TRANSLATION_PROVIDER_UNAVAILABLE',
+    }));
+    expect(JSON.stringify(reportDiagnostic.mock.calls)).not.toContain('Private farmer question');
   });
 });

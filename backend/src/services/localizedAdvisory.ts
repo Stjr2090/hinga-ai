@@ -38,11 +38,11 @@ export function createLocalizedAdvisoryService(
           answer: outgoing.translatedText,
         };
       } catch (error) {
-        if (error instanceof AdvisoryLanguageUnavailableError || error instanceof TranslationConfigurationError) {
-          if (error instanceof TranslationConfigurationError) {
-            throw new AdvisoryLanguageUnavailableError();
-          }
+        if (error instanceof TranslationConfigurationError) {
+          throw new AdvisoryLanguageUnavailableError();
+        }
 
+        if (error instanceof AdvisoryLanguageUnavailableError) {
           throw error;
         }
 

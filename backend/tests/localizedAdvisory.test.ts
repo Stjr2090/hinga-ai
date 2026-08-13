@@ -3,36 +3,68 @@ import type { AdvisoryService } from '../src/services/advisory.js';
 import { createLocalizedAdvisoryService } from '../src/services/localizedAdvisory.js';
 import { TranslationUnavailableError, type TranslationProvider } from '../src/translation/types.js';
 
-describe('Localized advisory service', () => {
-  it('translates Luganda into English and the advisory back into Luganda', async () => {
-    const generate = vi.fn().mockResolvedValue({ answer: 'Check the soil.', source: 'groq' });
-    const advisoryService: AdvisoryService = { generate };
-    const translate = vi.fn()
-      .mockResolvedValueOnce({ translatedText: 'When should I plant maize?' })
-      .mockResolvedValueOnce({ translatedText: 'Kebera ettaka.' });
-    const translationProvider = { translate } as unknown as TranslationProvider;
-    const service = createLocalizedAdvisoryService(
-      advisoryService,
-      translationProvider,
-    );
+function createTranslationProvider(translate: ReturnType<typeof vi.fn>): TranslationProvider {
+  return { provider: 'sunbird', translate } as TranslationProvider;
+}
 
-    await expect(service.generate({
-      message: 'Nnina kusimba ddi kasooli?',
-      language: 'lg',
-    })).resolves.toEqual({ answer: 'Kebera ettaka.', source: 'groq' });
-    expect(generate).toHaveBeenCalledWith({
-      message: 'When should I plant maize?',
-      language: 'en',
-    });
-    expect(translate).toHaveBeenCalledTimes(2);
-  });
+const localizedFixtures = [
+  {
+    language: 'lg' as const,
+    localQuestion: 'Nnina kusimba ddi kasooli?',
+    englishQuestion: 'When should I plant maize?',
+    englishAnswer: 'Check the soil.',
+    localAnswer: 'Kebera ettaka.',
+  },
+  {
+    language: 'nyn' as const,
+    localQuestion: 'Mbiibire ebicoori eriizooba?',
+    englishQuestion: 'Should I plant maize today?',
+    englishAnswer: 'Wait for reliable rain.',
+    localAnswer: 'Rinda enjura erikwesigwa.',
+  },
+];
+
+describe('Localized advisory service', () => {
+  it.each(localizedFixtures)(
+    'uses the shared localization pipeline for $language',
+    async ({ language, localQuestion, englishQuestion, englishAnswer, localAnswer }) => {
+      const generate = vi.fn().mockResolvedValue({ answer: englishAnswer, source: 'groq' });
+      const advisoryService: AdvisoryService = { generate };
+      const translate = vi.fn()
+        .mockResolvedValueOnce({ translatedText: englishQuestion })
+        .mockResolvedValueOnce({ translatedText: localAnswer });
+      const service = createLocalizedAdvisoryService(
+        advisoryService,
+        createTranslationProvider(translate),
+      );
+
+      await expect(service.generate({
+        message: localQuestion,
+        language,
+      })).resolves.toEqual({ answer: localAnswer, source: 'groq' });
+      expect(generate).toHaveBeenCalledWith({
+        message: englishQuestion,
+        language: 'en',
+      });
+      expect(translate).toHaveBeenNthCalledWith(1, {
+        text: localQuestion,
+        sourceLanguage: language,
+        targetLanguage: 'en',
+      });
+      expect(translate).toHaveBeenNthCalledWith(2, {
+        text: englishAnswer,
+        sourceLanguage: 'en',
+        targetLanguage: language,
+      });
+    },
+  );
 
   it('does not translate English requests', async () => {
     const generate = vi.fn().mockResolvedValue({ answer: 'Check the soil.', source: 'groq' });
     const translate = vi.fn();
     const service = createLocalizedAdvisoryService(
       { generate },
-      { translate } as unknown as TranslationProvider,
+      createTranslationProvider(translate),
     );
 
     await service.generate({ message: 'When should I plant maize?', language: 'en' });
@@ -56,50 +88,17 @@ describe('Localized advisory service', () => {
       .mockResolvedValueOnce({ translatedText: 'Enkuba eyinza okutonnya.' });
     const service = createLocalizedAdvisoryService(
       advisoryService,
-      { translate } as unknown as TranslationProvider,
+      createTranslationProvider(translate),
     );
 
     await expect(service.generate({ message: 'Enkuba enaatonya?', language: 'lg' }))
       .resolves.toMatchObject({ sources });
   });
 
-  it('runs an experimental Runyankole fixture through the reusable pipeline', async () => {
-    const generate = vi.fn().mockResolvedValue({ answer: 'Wait for reliable rain.', source: 'groq' });
-    const translate = vi.fn()
-      .mockResolvedValueOnce({ translatedText: 'Should I plant maize today?' })
-      .mockResolvedValueOnce({ translatedText: 'Rinda enjura erikwesigwa.' });
-    const service = createLocalizedAdvisoryService(
-      { generate },
-      { translate } as unknown as TranslationProvider,
-    );
-
-    await expect(service.generate({
-      message: 'Mbiibire ebicoori eriizooba?',
-      language: 'nyn',
-    })).resolves.toMatchObject({ answer: 'Rinda enjura erikwesigwa.' });
-    expect(generate).toHaveBeenCalledWith({
-      message: 'Should I plant maize today?',
-      language: 'en',
-    });
-    expect(translate).toHaveBeenNthCalledWith(1, {
-      text: 'Mbiibire ebicoori eriizooba?',
-      sourceLanguage: 'nyn',
-      targetLanguage: 'en',
-    });
-    expect(translate).toHaveBeenNthCalledWith(2, {
-      text: 'Wait for reliable rain.',
-      sourceLanguage: 'en',
-      targetLanguage: 'nyn',
-    });
-  });
-
   it('labels translation provider failures', async () => {
     const service = createLocalizedAdvisoryService(
       { generate: vi.fn() },
-      {
-        provider: 'sunbird',
-        translate: vi.fn().mockRejectedValue(new TranslationUnavailableError()),
-      },
+      createTranslationProvider(vi.fn().mockRejectedValue(new TranslationUnavailableError())),
     );
 
     await expect(service.generate({ message: 'Nsimbe ddi?', language: 'lg' }))

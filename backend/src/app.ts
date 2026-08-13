@@ -96,6 +96,14 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
           apiToken: options.environment.SUNBIRD_API_TOKEN,
           baseUrl: options.environment.SUNBIRD_BASE_URL,
           timeoutMilliseconds: options.environment.TRANSLATION_TIMEOUT_MS,
+          reportDiagnostic: (diagnostic) => {
+            if (diagnostic.outcome === 'failure') {
+              app.log.warn({ translation: diagnostic }, 'Translation request failed');
+              return;
+            }
+
+            app.log.info({ translation: diagnostic }, 'Translation request completed');
+          },
         }),
       )
     : baseAdvisoryService;
