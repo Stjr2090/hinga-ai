@@ -52,10 +52,12 @@ const testAdvisoryService: AdvisoryService = {
 async function createTestApp(
   weatherProvider: WeatherProvider = testWeatherProvider,
   advisoryService?: AdvisoryService,
+  environmentValues: NodeJS.ProcessEnv = {},
 ) {
   const environment = loadEnvironment({
     NODE_ENV: 'test',
     LOG_LEVEL: 'silent',
+    ...environmentValues,
   });
   const app = await buildApp({
     environment,
@@ -148,6 +150,33 @@ describe('HINGA backend', () => {
 
     expect(response.statusCode).toBe(400);
     expect(response.json().error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('accepts an explicitly enabled experimental language', async () => {
+    const app = await createTestApp(testWeatherProvider, testAdvisoryService, {
+      ENABLED_EXPERIMENTAL_LANGUAGES: 'nyn',
+    });
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/chat',
+      payload: {
+        message: 'Mbiibire ebicoori eriizooba?',
+        language: 'nyn',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      language: 'nyn',
+      source: 'groq',
+    });
+  });
+
+  it('rejects invalid experimental language configuration', () => {
+    expect(() => loadEnvironment({
+      NODE_ENV: 'test',
+      ENABLED_EXPERIMENTAL_LANGUAGES: 'en,unknown',
+    })).toThrow('Unknown or non-experimental language codes: en, unknown');
   });
 
   it('returns a safe response when the advisory provider is unavailable', async () => {

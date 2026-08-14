@@ -107,7 +107,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
         }),
       )
     : baseAdvisoryService;
-  await registerChatRoute(app, advisoryService);
+  await registerChatRoute(app, advisoryService, options.environment.ENABLED_EXPERIMENTAL_LANGUAGES);
   await registerWeatherRoute(app, weatherProvider);
 
   return app;

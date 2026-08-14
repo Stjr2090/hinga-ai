@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import { chatRequestSchema, type ChatResponse } from '../schemas/chat.js';
+import type { ExperimentalLanguageCode } from '../languages/registry.js';
+import { createChatRequestSchema, type ChatResponse } from '../schemas/chat.js';
 import {
   AdvisoryLanguageUnavailableError,
   AdvisoryUnavailableError,
@@ -7,7 +8,13 @@ import {
   type AdvisoryService,
 } from '../services/advisory.js';
 
-export async function registerChatRoute(app: FastifyInstance, advisoryService: AdvisoryService): Promise<void> {
+export async function registerChatRoute(
+  app: FastifyInstance,
+  advisoryService: AdvisoryService,
+  enabledExperimentalLanguages: readonly ExperimentalLanguageCode[] = [],
+): Promise<void> {
+  const chatRequestSchema = createChatRequestSchema(enabledExperimentalLanguages);
+
   app.post('/api/chat', async (request, reply) => {
     const parsedRequest = chatRequestSchema.safeParse(request.body);
 

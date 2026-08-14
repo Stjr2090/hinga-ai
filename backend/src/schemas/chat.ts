@@ -1,25 +1,43 @@
 import { z } from 'zod';
-import { isProductionLanguage, type ProductionLanguageCode } from '../languages/registry.js';
+import {
+  isEnabledLanguage,
+  isLanguageCode,
+  type ExperimentalLanguageCode,
+  type LanguageCode,
+} from '../languages/registry.js';
 
-export const supportedLanguageSchema = z.custom<ProductionLanguageCode>(isProductionLanguage, {
-  message: 'Language is not available in production.',
-});
+export function createSupportedLanguageSchema(
+  enabledExperimentalLanguages: readonly ExperimentalLanguageCode[] = [],
+) {
+  return z.custom<LanguageCode>(
+    (value) => isEnabledLanguage(value, enabledExperimentalLanguages),
+    { message: 'Language is not enabled.' },
+  );
+}
+
+export const supportedLanguageSchema = createSupportedLanguageSchema();
 
 export const coordinatesSchema = z.object({
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
 });
 
-export const chatRequestSchema = z.object({
-  message: z.string().trim().min(1).max(1000),
-  language: supportedLanguageSchema,
-  location: coordinatesSchema.optional(),
-});
+export function createChatRequestSchema(
+  enabledExperimentalLanguages: readonly ExperimentalLanguageCode[] = [],
+) {
+  return z.object({
+    message: z.string().trim().min(1).max(1000),
+    language: createSupportedLanguageSchema(enabledExperimentalLanguages),
+    location: coordinatesSchema.optional(),
+  });
+}
+
+export const chatRequestSchema = createChatRequestSchema();
 
 export const chatResponseSchema = z.object({
   requestId: z.string().min(1),
   answer: z.string().min(1),
-  language: supportedLanguageSchema,
+  language: z.custom<LanguageCode>(isLanguageCode),
   source: z.literal('groq'),
   sources: z.array(z.object({
     provider: z.literal('open-meteo'),
@@ -29,6 +47,6 @@ export const chatResponseSchema = z.object({
   })).optional(),
 });
 
-export type ChatRequest = z.infer<typeof chatRequestSchema>;
+export type ChatRequest = z.infer<ReturnType<typeof createChatRequestSchema>>;
 export type ChatResponse = z.infer<typeof chatResponseSchema>;
 export type Coordinates = z.infer<typeof coordinatesSchema>;

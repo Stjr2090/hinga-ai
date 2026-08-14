@@ -45,10 +45,16 @@ export type LanguageCode = keyof typeof languageRegistry;
 export type ProductionLanguageCode = {
   [Code in LanguageCode]: typeof languageRegistry[Code]['lifecycle'] extends 'production' ? Code : never
 }[LanguageCode];
+export type ExperimentalLanguageCode = {
+  [Code in LanguageCode]: typeof languageRegistry[Code]['lifecycle'] extends 'experimental' ? Code : never
+}[LanguageCode];
 
 export const languageCodes = Object.keys(languageRegistry) as LanguageCode[];
 export const productionLanguageCodes = languageCodes.filter(
   (code): code is ProductionLanguageCode => languageRegistry[code].lifecycle === 'production',
+);
+export const experimentalLanguageCodes = languageCodes.filter(
+  (code): code is ExperimentalLanguageCode => languageRegistry[code].lifecycle === 'experimental',
 );
 
 export function isLanguageCode(value: unknown): value is LanguageCode {
@@ -57,6 +63,18 @@ export function isLanguageCode(value: unknown): value is LanguageCode {
 
 export function isProductionLanguage(value: unknown): value is ProductionLanguageCode {
   return isLanguageCode(value) && languageRegistry[value].lifecycle === 'production';
+}
+
+export function isExperimentalLanguage(value: unknown): value is ExperimentalLanguageCode {
+  return isLanguageCode(value) && languageRegistry[value].lifecycle === 'experimental';
+}
+
+export function isEnabledLanguage(
+  value: unknown,
+  enabledExperimentalLanguages: readonly ExperimentalLanguageCode[],
+): value is LanguageCode {
+  return isProductionLanguage(value)
+    || (isExperimentalLanguage(value) && enabledExperimentalLanguages.includes(value));
 }
 
 export function getProviderLanguageCode(

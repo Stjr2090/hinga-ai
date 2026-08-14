@@ -1,4 +1,20 @@
 import { z } from 'zod';
+import { isExperimentalLanguage, type ExperimentalLanguageCode } from '../languages/registry.js';
+
+const enabledExperimentalLanguagesSchema = z.string().default('').transform((value, context) => {
+  const codes = value.split(',').map((code) => code.trim()).filter(Boolean);
+  const invalidCodes = codes.filter((code) => !isExperimentalLanguage(code));
+
+  if (invalidCodes.length > 0) {
+    context.addIssue({
+      code: 'custom',
+      message: `Unknown or non-experimental language codes: ${invalidCodes.join(', ')}`,
+    });
+    return z.NEVER;
+  }
+
+  return [...new Set(codes)] as ExperimentalLanguageCode[];
+});
 
 const environmentSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -17,6 +33,7 @@ const environmentSchema = z.object({
   SUNBIRD_API_TOKEN: z.string().min(1).optional(),
   SUNBIRD_BASE_URL: z.string().url().default('https://api.sunbird.ai'),
   TRANSLATION_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30_000).default(10_000),
+  ENABLED_EXPERIMENTAL_LANGUAGES: enabledExperimentalLanguagesSchema,
 });
 
 export type Environment = z.infer<typeof environmentSchema>;
