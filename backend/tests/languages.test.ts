@@ -12,7 +12,7 @@ describe('language registry', () => {
     expect(languageRegistry.nyn).toMatchObject({
       lifecycle: 'experimental',
       providerCodes: { sunbird: 'nyn' },
-      validation: { status: 'smoke-reviewed', reviewedPhrases: 4, requiredPhrases: 40 },
+      validation: { status: 'reviewed-blocked', reviewedPhrases: 40, requiredPhrases: 40 },
     });
   });
 

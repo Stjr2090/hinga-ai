@@ -1,5 +1,5 @@
 export type LanguageLifecycle = 'production' | 'experimental';
-export type LanguageValidationStatus = 'native' | 'validated' | 'smoke-reviewed';
+export type LanguageValidationStatus = 'native' | 'validated' | 'smoke-reviewed' | 'reviewed-blocked';
 export type TranslationProviderName = 'sunbird';
 
 interface LanguageDefinition {
@@ -37,7 +37,7 @@ export const languageRegistry = {
     lifecycle: 'experimental',
     providerCodes: { sunbird: 'nyn' },
     directions: { toEnglish: true, fromEnglish: true },
-    validation: { status: 'smoke-reviewed', reviewedPhrases: 4, requiredPhrases: 40 },
+    validation: { status: 'reviewed-blocked', reviewedPhrases: 40, requiredPhrases: 40 },
   },
 } as const satisfies Record<string, LanguageDefinition>;
 
