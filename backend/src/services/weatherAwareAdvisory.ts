@@ -41,7 +41,9 @@ export function createWeatherAwareAdvisoryService(
       }
 
       try {
-        const forecast = await weatherProvider.getForecast(request.location);
+        const forecast = request.signal
+          ? await weatherProvider.getForecast(request.location, request.signal)
+          : await weatherProvider.getForecast(request.location);
 
         const advisory = await advisoryService.generate({
           ...request,

@@ -1,4 +1,6 @@
-export type SupportedLanguage = 'en' | 'lg';
+import type { SupportedLanguage } from '../languages';
+
+export type { SupportedLanguage } from '../languages';
 
 export interface Coordinates {
   latitude: number;

@@ -1,7 +1,8 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import { buildApp } from './app.js';
 import { loadEnvironment } from './config/environment.js';
 
+dotenv.config({ quiet: true });
 const environment = loadEnvironment();
 const app = await buildApp({ environment });
 

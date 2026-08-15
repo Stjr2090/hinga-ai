@@ -31,7 +31,7 @@ export interface WeatherForecast {
 }
 
 export interface WeatherProvider {
-  getForecast(coordinates: Coordinates): Promise<WeatherForecast>;
+  getForecast(coordinates: Coordinates, signal?: AbortSignal): Promise<WeatherForecast>;
 }
 
 export type WeatherRiskCode = 'HEAVY_RAIN' | 'RAIN' | 'HEAT' | 'STRONG_WIND' | 'DRY_CONDITIONS';

@@ -21,6 +21,7 @@ export function createLocalizedAdvisoryService(
           text: request.message,
           sourceLanguage: request.language,
           targetLanguage: 'en',
+          ...(request.signal ? { signal: request.signal } : {}),
         });
         const advisory = await advisoryService.generate({
           ...request,
@@ -31,6 +32,7 @@ export function createLocalizedAdvisoryService(
           text: advisory.answer,
           sourceLanguage: 'en',
           targetLanguage: request.language,
+          ...(request.signal ? { signal: request.signal } : {}),
         });
 
         return {

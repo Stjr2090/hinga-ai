@@ -6,6 +6,7 @@ export interface AdvisoryRequest {
   message: string;
   language: LanguageCode;
   location?: Coordinates;
+  signal?: AbortSignal;
   weather?: {
     forecast: WeatherForecast;
     risks: WeatherRisk[];

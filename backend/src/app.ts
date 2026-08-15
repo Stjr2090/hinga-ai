@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyInstance, LogController } from 'fastify';
 import type { Environment } from './config/environment.js';
 import { registerChatRoute } from './routes/chat.js';
 import { registerHealthRoute } from './routes/health.js';
@@ -20,18 +20,30 @@ export interface BuildAppOptions {
   environment: Environment;
   advisoryService?: AdvisoryService;
   weatherProvider?: WeatherProvider;
+  loggerStream?: { write(message: string): void };
 }
 
 export async function buildApp(options: BuildAppOptions): Promise<FastifyInstance> {
   const app = Fastify({
     genReqId: () => randomUUID(),
+    logController: new LogController({ disableRequestLogging: true }),
     logger: options.environment.LOG_LEVEL === 'silent'
       ? false
       : {
           level: options.environment.LOG_LEVEL,
           redact: ['req.headers.authorization', 'req.headers.x-api-key'],
+          ...(options.loggerStream ? { stream: options.loggerStream } : {}),
         },
     bodyLimit: 1_048_576,
+  });
+
+  app.addHook('onResponse', async (request, reply) => {
+    request.log.info({
+      requestId: request.id,
+      route: request.routeOptions.url,
+      status: reply.statusCode,
+      durationMilliseconds: Math.round(reply.elapsedTime),
+    }, 'Request completed');
   });
 
   await app.register(helmet);
@@ -53,7 +65,22 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   }));
 
   app.setErrorHandler(async (error, request, reply) => {
-    request.log.error({ err: error }, 'Request failed');
+    if (
+      typeof error === 'object'
+      && error !== null
+      && 'code' in error
+      && error.code === 'FST_ERR_CTP_INVALID_JSON_BODY'
+    ) {
+      return reply.status(400).send({
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'The request body is invalid.',
+          requestId: request.id,
+        },
+      });
+    }
+
+    request.log.error({ failureClassification: 'UNEXPECTED_ERROR' }, 'Request failed');
     return reply.status(500).send({
       error: {
         code: 'INTERNAL_ERROR',
@@ -78,8 +105,13 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     ?? (options.environment.GROQ_API_KEY
       ? createGroqAdvisoryService({
           apiKey: options.environment.GROQ_API_KEY,
-          model: options.environment.GROQ_MODEL,
+          primaryModel: options.environment.GROQ_PRIMARY_MODEL,
+          fallbackModel: options.environment.GROQ_FALLBACK_MODEL,
           timeoutMilliseconds: options.environment.ADVISORY_TIMEOUT_MS,
+          reportDiagnostic: (diagnostic) => {
+            const level = diagnostic.outcome === 'failure' ? 'warn' : 'info';
+            app.log[level]({ provider: 'groq', advisory: diagnostic }, 'Groq provider attempt completed');
+          },
         })
       : null);
 
@@ -107,7 +139,12 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
         }),
       )
     : baseAdvisoryService;
-  await registerChatRoute(app, advisoryService, options.environment.ENABLED_EXPERIMENTAL_LANGUAGES);
+  await registerChatRoute(
+    app,
+    advisoryService,
+    options.environment.ENABLED_EXPERIMENTAL_LANGUAGES,
+    options.environment.REQUEST_DEADLINE_MS,
+  );
   await registerWeatherRoute(app, weatherProvider);
 
   return app;

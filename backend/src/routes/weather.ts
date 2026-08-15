@@ -32,7 +32,10 @@ export async function registerWeatherRoute(app: FastifyInstance, weatherProvider
       });
     } catch (error) {
       if (error instanceof WeatherProviderError) {
-        request.log.warn({ weatherErrorCode: error.code }, 'Weather provider unavailable');
+        request.log.warn({
+          provider: 'open-meteo',
+          failureClassification: error.code,
+        }, 'Weather provider unavailable');
         return reply.status(502).send({
           error: {
             code: 'WEATHER_UNAVAILABLE',

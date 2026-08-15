@@ -36,7 +36,7 @@ export function createOpenMeteoProvider(options: OpenMeteoOptions): WeatherProvi
   const fetchImplementation = options.fetchImplementation ?? fetch;
 
   return {
-    async getForecast(coordinates: Coordinates): Promise<WeatherForecast> {
+    async getForecast(coordinates: Coordinates, signal?: AbortSignal): Promise<WeatherForecast> {
       const url = new URL(`${options.baseUrl}/forecast`);
       url.searchParams.set('latitude', coordinates.latitude.toString());
       url.searchParams.set('longitude', coordinates.longitude.toString());
@@ -50,7 +50,9 @@ export function createOpenMeteoProvider(options: OpenMeteoOptions): WeatherProvi
       try {
         response = await fetchImplementation(url, {
           headers: { accept: 'application/json' },
-          signal: AbortSignal.timeout(options.timeoutMilliseconds),
+          signal: signal
+            ? AbortSignal.any([signal, AbortSignal.timeout(options.timeoutMilliseconds)])
+            : AbortSignal.timeout(options.timeoutMilliseconds),
         });
       } catch (error) {
         const code = error instanceof DOMException && error.name === 'TimeoutError' ? 'TIMEOUT' : 'UPSTREAM_ERROR';

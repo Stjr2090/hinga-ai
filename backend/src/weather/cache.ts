@@ -14,7 +14,7 @@ export function createCachedWeatherProvider(
   const cache = new Map<string, CacheEntry>();
 
   return {
-    async getForecast(coordinates: Coordinates): Promise<WeatherForecast> {
+    async getForecast(coordinates: Coordinates, signal?: AbortSignal): Promise<WeatherForecast> {
       const key = `${coordinates.latitude.toFixed(3)},${coordinates.longitude.toFixed(3)}`;
       const existingEntry = cache.get(key);
       const now = Date.now();
@@ -25,7 +25,7 @@ export function createCachedWeatherProvider(
         return existingEntry.forecast;
       }
 
-      const forecast = await provider.getForecast(coordinates);
+      const forecast = await provider.getForecast(coordinates, signal);
 
       while (cache.size >= maximumEntries) {
         const oldestKey = cache.keys().next().value;

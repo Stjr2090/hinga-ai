@@ -90,7 +90,12 @@ export function createSunbirdTranslationProvider(
             target_language: targetProviderCode,
             text: translationRequest.text,
           }),
-          signal: AbortSignal.timeout(options.timeoutMilliseconds),
+          signal: translationRequest.signal
+            ? AbortSignal.any([
+                translationRequest.signal,
+                AbortSignal.timeout(options.timeoutMilliseconds),
+              ])
+            : AbortSignal.timeout(options.timeoutMilliseconds),
         });
 
         if (!response.ok) {
@@ -126,9 +131,16 @@ export function createSunbirdTranslationProvider(
           durationMilliseconds: Date.now() - startedAt,
         };
       } catch (error) {
+        const wasAborted = translationRequest.signal?.aborted
+          || (error instanceof DOMException
+            && (error.name === 'AbortError' || error.name === 'TimeoutError'));
         const providerError = error instanceof TranslationUnavailableError
           ? error
-          : new TranslationUnavailableError('sunbird', direction);
+          : new TranslationUnavailableError(
+              'sunbird',
+              direction,
+              wasAborted ? 'TRANSLATION_TIMEOUT' : 'TRANSLATION_PROVIDER_UNAVAILABLE',
+            );
         report('failure', providerError.code);
         throw providerError;
       }

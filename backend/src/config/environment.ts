@@ -2,7 +2,28 @@ import { z } from 'zod';
 import { isExperimentalLanguage, type ExperimentalLanguageCode } from '../languages/registry.js';
 
 const enabledExperimentalLanguagesSchema = z.string().default('').transform((value, context) => {
-  const codes = value.split(',').map((code) => code.trim()).filter(Boolean);
+  if (value === '') {
+    return [] as ExperimentalLanguageCode[];
+  }
+
+  const codes = value.split(',').map((code) => code.trim());
+
+  if (codes.some((code) => code.length === 0)) {
+    context.addIssue({
+      code: 'custom',
+      message: 'Experimental language codes must be non-empty',
+    });
+    return z.NEVER;
+  }
+
+  if (new Set(codes).size !== codes.length) {
+    context.addIssue({
+      code: 'custom',
+      message: 'Experimental language codes must be unique',
+    });
+    return z.NEVER;
+  }
+
   const invalidCodes = codes.filter((code) => !isExperimentalLanguage(code));
 
   if (invalidCodes.length > 0) {
@@ -13,7 +34,7 @@ const enabledExperimentalLanguagesSchema = z.string().default('').transform((val
     return z.NEVER;
   }
 
-  return [...new Set(codes)] as ExperimentalLanguageCode[];
+  return codes as ExperimentalLanguageCode[];
 });
 
 const environmentSchema = z.object({
@@ -23,16 +44,18 @@ const environmentSchema = z.object({
   CORS_ORIGIN: z.string().url().default('http://localhost:3000'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
+  REQUEST_DEADLINE_MS: z.coerce.number().int().min(1000).max(29_000).default(25_000),
   OPEN_METEO_BASE_URL: z.string().url().default('https://api.open-meteo.com/v1'),
   WEATHER_TIMEOUT_MS: z.coerce.number().int().min(500).max(30_000).default(5000),
   WEATHER_CACHE_TTL_SECONDS: z.coerce.number().int().min(0).max(3600).default(600),
   WEATHER_CACHE_MAX_ENTRIES: z.coerce.number().int().min(1).max(10_000).default(250),
   GROQ_API_KEY: z.string().min(1).optional(),
-  GROQ_MODEL: z.string().min(1).default('llama-3.3-70b-versatile'),
+  GROQ_PRIMARY_MODEL: z.string().min(1).default('openai/gpt-oss-20b'),
+  GROQ_FALLBACK_MODEL: z.string().min(1).default('openai/gpt-oss-120b'),
   ADVISORY_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30_000).default(10_000),
   SUNBIRD_API_TOKEN: z.string().min(1).optional(),
   SUNBIRD_BASE_URL: z.string().url().default('https://api.sunbird.ai'),
-  TRANSLATION_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30_000).default(10_000),
+  TRANSLATION_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30_000).default(15_000),
   ENABLED_EXPERIMENTAL_LANGUAGES: enabledExperimentalLanguagesSchema,
 });
 
@@ -44,6 +67,10 @@ export function loadEnvironment(values: NodeJS.ProcessEnv = process.env): Enviro
   if (!result.success) {
     const issues = result.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ');
     throw new Error(`Invalid backend configuration: ${issues}`);
+  }
+
+  if (result.data.GROQ_PRIMARY_MODEL === result.data.GROQ_FALLBACK_MODEL) {
+    throw new Error('Invalid backend configuration: GROQ_PRIMARY_MODEL and GROQ_FALLBACK_MODEL must differ');
   }
 
   if (result.data.NODE_ENV === 'production') {

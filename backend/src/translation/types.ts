@@ -4,6 +4,7 @@ export interface TranslationRequest {
   text: string;
   sourceLanguage: LanguageCode;
   targetLanguage: LanguageCode;
+  signal?: AbortSignal;
 }
 
 export interface TranslationResult extends TranslationRequest {
@@ -21,6 +22,7 @@ export interface TranslationProvider {
 export type TranslationDiagnosticOutcome = 'success' | 'bypassed' | 'failure';
 export type TranslationErrorCode =
   | 'TRANSLATION_PROVIDER_UNAVAILABLE'
+  | 'TRANSLATION_TIMEOUT'
   | 'TRANSLATION_DIRECTION_UNSUPPORTED';
 
 export interface TranslationDiagnostic {
@@ -34,11 +36,10 @@ export interface TranslationDiagnostic {
 export type TranslationDiagnosticReporter = (diagnostic: TranslationDiagnostic) => void;
 
 export class TranslationUnavailableError extends Error {
-  readonly code: TranslationErrorCode = 'TRANSLATION_PROVIDER_UNAVAILABLE';
-
   constructor(
     readonly provider: TranslationProviderName = 'sunbird',
     readonly direction?: `${LanguageCode}->${LanguageCode}`,
+    readonly code: TranslationErrorCode = 'TRANSLATION_PROVIDER_UNAVAILABLE',
   ) {
     super('The translation service is unavailable.');
     this.name = 'TranslationUnavailableError';

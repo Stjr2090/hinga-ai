@@ -185,6 +185,41 @@ describe('Sunbird translation provider', () => {
     }));
   });
 
+  it('classifies an aborted provider request as a translation timeout', async () => {
+    const controller = new AbortController();
+    const reportDiagnostic = vi.fn();
+    let providerSignal: AbortSignal | undefined;
+    const request = vi.fn().mockImplementation(async (_url, init) => {
+      providerSignal = init.signal;
+      return new Promise((_, reject) => {
+        init.signal.addEventListener(
+          'abort',
+          () => reject(new DOMException('Aborted', 'AbortError')),
+          { once: true },
+        );
+      });
+    });
+    const provider = createSunbirdTranslationProvider({ ...options, reportDiagnostic }, request);
+    const translation = provider.translate({
+      text: 'Private farmer question',
+      sourceLanguage: 'lg',
+      targetLanguage: 'en',
+      signal: controller.signal,
+    });
+
+    controller.abort();
+
+    await expect(translation).rejects.toMatchObject({ code: 'TRANSLATION_TIMEOUT' });
+    expect(providerSignal).not.toBe(controller.signal);
+    expect(providerSignal?.aborted).toBe(true);
+    expect(reportDiagnostic).toHaveBeenCalledWith(expect.objectContaining({
+      provider: 'sunbird',
+      outcome: 'failure',
+      errorCode: 'TRANSLATION_TIMEOUT',
+    }));
+    expect(JSON.stringify(reportDiagnostic.mock.calls)).not.toContain('Private farmer question');
+  });
+
   it.each([
     ['HTTP failure', vi.fn().mockResolvedValue(createResponse({}, 503))],
     ['network failure', vi.fn().mockRejectedValue(new Error('offline'))],

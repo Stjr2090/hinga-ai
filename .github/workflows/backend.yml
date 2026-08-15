@@ -28,6 +28,7 @@ env:
 
 jobs:
   deploy:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -67,6 +68,7 @@ jobs:
         shell: bash
         run: |
           REVISION_SUFFIX="sha-${GITHUB_SHA:0:7}-${GITHUB_RUN_ATTEMPT}"
+          echo "REVISION_SUFFIX=$REVISION_SUFFIX" >> "$GITHUB_ENV"
           az containerapp update \
             --name "$AZURE_CONTAINER_APP" \
             --resource-group "$AZURE_RESOURCE_GROUP" \
@@ -74,6 +76,62 @@ jobs:
             --revision-suffix "$REVISION_SUFFIX" \
             --only-show-errors \
             --output none
+
+      - name: Verify deployed backend image
+        shell: bash
+        run: |
+          if [[ ! "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "GitHub SHA is not a full 40-character lowercase hexadecimal value."
+            exit 1
+          fi
+
+          EXPECTED_REVISION="${AZURE_CONTAINER_APP}--${REVISION_SUFFIX}"
+          EXPECTED_IMAGE="${IMAGE}:${GITHUB_SHA}"
+          REVISION_DATA=""
+
+          for attempt in {1..12}; do
+            if REVISION_DATA="$(timeout 15s az containerapp revision show \
+              --name "$AZURE_CONTAINER_APP" \
+              --resource-group "$AZURE_RESOURCE_GROUP" \
+              --revision "$EXPECTED_REVISION" \
+              --query '[properties.template.containers[0].image, properties.provisioningState, properties.healthState, properties.active]' \
+              --output tsv \
+              --only-show-errors 2>/dev/null)"; then
+              break
+            fi
+
+            if [[ "$attempt" -lt 12 ]]; then
+              sleep 5
+            fi
+          done
+
+          if [[ -z "$REVISION_DATA" ]]; then
+            echo "Expected revision was not registered within the bounded verification period: $EXPECTED_REVISION"
+            exit 1
+          fi
+
+          mapfile -t REVISION_FIELDS <<< "$REVISION_DATA"
+          DEPLOYED_IMAGE="${REVISION_FIELDS[0]:-}"
+          PROVISIONING_STATE="${REVISION_FIELDS[1]:-unknown}"
+          HEALTH_STATE="${REVISION_FIELDS[2]:-unknown}"
+          ACTIVE_STATE="${REVISION_FIELDS[3]:-unknown}"
+          DEPLOYED_TAG="${DEPLOYED_IMAGE##*:}"
+
+          if [[ "$DEPLOYED_TAG" == "latest" || ! "$DEPLOYED_TAG" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Deployed image does not use an immutable full Git SHA tag."
+            exit 1
+          fi
+
+          if [[ "$DEPLOYED_IMAGE" != "$EXPECTED_IMAGE" ]]; then
+            echo "Deployed image does not match the image built by this workflow."
+            exit 1
+          fi
+
+          echo "Verified revision: $EXPECTED_REVISION"
+          echo "Verified immutable image: $DEPLOYED_IMAGE"
+          echo "Provisioning state: $PROVISIONING_STATE"
+          echo "Health state: $HEALTH_STATE"
+          echo "Active: $ACTIVE_STATE"
 
       - name: Verify backend health
         shell: bash
