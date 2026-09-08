@@ -18,7 +18,6 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write
 
 env:
   AZURE_RESOURCE_GROUP: hinga-ai-student-rg
@@ -27,8 +26,7 @@ env:
   IMAGE: hingaaiacr.azurecr.io/hinga-backend
 
 jobs:
-  deploy:
-    if: github.ref == 'refs/heads/main'
+  ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -46,6 +44,19 @@ jobs:
 
       - name: Test backend
         run: npm test --workspace backend
+
+      - name: Build backend
+        run: npm run build --workspace backend
+
+  deploy:
+    needs: ci
+    if: github.ref == 'refs/heads/main' && vars.AZURE_DEPLOYMENT_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
 
       - uses: azure/login@v2
         with:
