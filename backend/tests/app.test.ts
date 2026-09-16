@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildApp } from '../src/app.js';
 import { loadEnvironment } from '../src/config/environment.js';
 import { AdvisoryUnavailableError, type AdvisoryService } from '../src/services/advisory.js';
+import { createWeatherAwareAdvisoryService } from '../src/services/weatherAwareAdvisory.js';
 import { WeatherProviderError, type WeatherForecast, type WeatherProvider } from '../src/weather/types.js';
 
 const applications: Awaited<ReturnType<typeof buildApp>>[] = [];
@@ -322,37 +323,78 @@ describe('HINGA backend', () => {
     });
   });
 
-  it('returns validated weather and deterministic risks', async () => {
-    const app = await createTestApp();
+  it('returns weather-grounded English advice with attribution through chat', async () => {
+    const generate = vi.fn().mockResolvedValue({
+      answer: 'Wait for safer conditions.',
+      source: 'groq',
+    });
+    const getForecast = vi.fn().mockResolvedValue(weatherForecast);
+    const advisoryService = createWeatherAwareAdvisoryService(
+      { generate },
+      { getForecast },
+    );
+    const app = await createTestApp(testWeatherProvider, advisoryService);
     const response = await app.inject({
-      method: 'GET',
-      url: '/api/weather?latitude=0.3476&longitude=32.5825',
+      method: 'POST',
+      url: '/api/chat',
+      payload: {
+        message: 'Should I plant maize today?',
+        language: 'en',
+        location: weatherForecast.coordinates,
+      },
     });
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      forecast: {
-        source: 'open-meteo',
+      language: 'en',
+      source: 'groq',
+      sources: [{
+        provider: 'open-meteo',
+        attribution: 'Weather data by Open-Meteo.com',
         timezone: 'Africa/Kampala',
-      },
-      risks: [{ code: 'HEAVY_RAIN', severity: 'high' }],
+      }],
     });
+    expect(getForecast).toHaveBeenCalledWith(weatherForecast.coordinates, expect.any(AbortSignal));
+    expect(generate).toHaveBeenCalledWith(expect.objectContaining({
+      weather: {
+        forecast: weatherForecast,
+        risks: [{ code: 'HEAVY_RAIN', severity: 'high', value: 24, unit: 'mm' }],
+      },
+    }));
   });
 
-  it('rejects invalid weather coordinates', async () => {
+  it('does not expose the retired public weather route', async () => {
     const app = await createTestApp();
     const response = await app.inject({
       method: 'GET',
-      url: '/api/weather?latitude=200&longitude=32.5825',
+      url: '/api/weather',
     });
 
-    expect(response.statusCode).toBe(400);
-    expect(response.json().error.code).toBe('VALIDATION_ERROR');
+    expect(response.statusCode).toBe(404);
+    expect(response.json().error.code).toBe('NOT_FOUND');
+  });
+
+  it('keeps location-free chat unchanged', async () => {
+    const app = await createTestApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/chat',
+      payload: { message: 'How should I prepare maize seed?', language: 'en' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      answer: 'Test agricultural guidance.',
+      language: 'en',
+      source: 'groq',
+    });
+    expect(response.json()).not.toHaveProperty('sources');
   });
 
   it('logs only safe request and provider diagnostics', async () => {
     const groqKey = 'gsk_unique_runtime_log_secret_7f1d';
     const farmerMessage = 'unique farmer message 3a96 about private field conditions';
+    const weatherMessage = 'unique weather message 52dd about private field conditions';
     const authorization = 'Bearer unique-authorization-value-84c2';
     const latitude = '1.234567';
     const longitude = '31.765432';
@@ -375,7 +417,7 @@ describe('HINGA backend', () => {
     });
     const app = await buildApp({
       environment,
-      advisoryService,
+      advisoryService: createWeatherAwareAdvisoryService(advisoryService, weatherProvider),
       weatherProvider,
       loggerStream: { write: (message) => logLines.push(message) },
     });
@@ -388,9 +430,14 @@ describe('HINGA backend', () => {
       payload: { message: farmerMessage, language: 'en' },
     });
     const weatherResponse = await app.inject({
-      method: 'GET',
-      url: `/api/weather?latitude=${latitude}&longitude=${longitude}`,
+      method: 'POST',
+      url: '/api/chat',
       headers: { authorization },
+      payload: {
+        message: weatherMessage,
+        language: 'en',
+        location: { latitude: Number(latitude), longitude: Number(longitude) },
+      },
     });
     const logs = logLines.join('');
     const fingerprint = createHash('sha256').update(groqKey).digest('hex').slice(0, 12);
@@ -400,6 +447,7 @@ describe('HINGA backend', () => {
     expect(logs).not.toContain(groqKey);
     expect(logs).not.toContain(fingerprint);
     expect(logs).not.toContain(farmerMessage);
+    expect(logs).not.toContain(weatherMessage);
     expect(logs).not.toContain(latitude);
     expect(logs).not.toContain(longitude);
     expect(logs).not.toContain(authorization);
@@ -408,8 +456,7 @@ describe('HINGA backend', () => {
     expect(logs).toContain('"route":"/api/chat"');
     expect(logs).toContain('"status":500');
     expect(logs).toMatch(/"durationMilliseconds":\d+/);
-    expect(logs).toContain('"provider":"open-meteo"');
-    expect(logs).toContain('"failureClassification":"UPSTREAM_ERROR"');
+    expect(logs).not.toContain(environment.OPEN_METEO_BASE_URL);
     expect(logs).toContain('"failureClassification":"UNEXPECTED_ERROR"');
   });
 });

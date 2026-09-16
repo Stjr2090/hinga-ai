@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { AdvisoryService } from '../src/services/advisory.js';
 import { createLocalizedAdvisoryService } from '../src/services/localizedAdvisory.js';
+import { createWeatherAwareAdvisoryService } from '../src/services/weatherAwareAdvisory.js';
 import { TranslationUnavailableError, type TranslationProvider } from '../src/translation/types.js';
+import type { WeatherForecast } from '../src/weather/types.js';
 
 function createTranslationProvider(translate: ReturnType<typeof vi.fn>): TranslationProvider {
   return { provider: 'sunbird', translate } as TranslationProvider;
@@ -74,15 +76,28 @@ describe('Localized advisory service', () => {
   });
 
   it('preserves weather source metadata through translation', async () => {
-    const sources = [{
-      provider: 'open-meteo' as const,
-      attribution: 'Weather data by Open-Meteo.com' as const,
-      fetchedAt: '2026-08-12T00:00:00.000Z',
+    const forecast: WeatherForecast = {
+      coordinates: { latitude: 0.3476, longitude: 32.5825 },
       timezone: 'Africa/Kampala',
-    }];
-    const advisoryService: AdvisoryService = {
-      generate: vi.fn().mockResolvedValue({ answer: 'Rain is possible.', source: 'groq', sources }),
+      fetchedAt: '2026-08-12T00:00:00.000Z',
+      current: {
+        observedAt: '2026-08-12T03:00',
+        temperatureCelsius: 24,
+        precipitationMillimeters: 0,
+        rainMillimeters: 0,
+        weatherCode: 2,
+        windSpeedKilometersPerHour: 8,
+        windGustKilometersPerHour: 12,
+      },
+      daily: [],
+      source: 'open-meteo',
+      attribution: 'Weather data by Open-Meteo.com',
     };
+    const getForecast = vi.fn().mockResolvedValue(forecast);
+    const advisoryService = createWeatherAwareAdvisoryService(
+      { generate: vi.fn().mockResolvedValue({ answer: 'Rain is possible.', source: 'groq' }) },
+      { getForecast },
+    );
     const translate = vi.fn()
       .mockResolvedValueOnce({ translatedText: 'Will it rain?' })
       .mockResolvedValueOnce({ translatedText: 'Enkuba eyinza okutonnya.' });
@@ -91,8 +106,19 @@ describe('Localized advisory service', () => {
       createTranslationProvider(translate),
     );
 
-    await expect(service.generate({ message: 'Enkuba enaatonya?', language: 'lg' }))
-      .resolves.toMatchObject({ sources });
+    await expect(service.generate({
+      message: 'Enkuba enaatonya?',
+      language: 'lg',
+      location: forecast.coordinates,
+    })).resolves.toMatchObject({
+      answer: 'Enkuba eyinza okutonnya.',
+      sources: [{
+        provider: 'open-meteo',
+        attribution: 'Weather data by Open-Meteo.com',
+        timezone: 'Africa/Kampala',
+      }],
+    });
+    expect(getForecast).toHaveBeenCalledWith(forecast.coordinates);
   });
 
   it('labels translation provider failures', async () => {
