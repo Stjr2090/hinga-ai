@@ -80,6 +80,7 @@ describe('HINGA backend', () => {
 
     expect(environment.GROQ_PRIMARY_MODEL).toBe('openai/gpt-oss-20b');
     expect(environment.GROQ_FALLBACK_MODEL).toBe('openai/gpt-oss-120b');
+    expect(environment.SUNBIRD_BASE_URL).toBe('https://api.sunbird.ai');
     expect(environment.REQUEST_DEADLINE_MS).toBe(25_000);
     expect(environment.TRANSLATION_TIMEOUT_MS).toBe(15_000);
     expect(environment.ENABLED_EXPERIMENTAL_LANGUAGES).toEqual([]);
@@ -90,6 +91,36 @@ describe('HINGA backend', () => {
 
     expect(environment.TRANSLATION_TIMEOUT_MS).toBe(15_000);
     expect(environment.REQUEST_DEADLINE_MS).toBe(25_000);
+  });
+
+  it.each([
+    'https://api.sunbird.ai',
+    'https://sunbird.test.example/v2',
+  ])('accepts HTTPS Sunbird base URL %s', (value) => {
+    expect(loadEnvironment({
+      NODE_ENV: 'test',
+      SUNBIRD_BASE_URL: value,
+    }).SUNBIRD_BASE_URL).toBe(value);
+  });
+
+  it.each([
+    'http://api.sunbird.ai',
+    'ftp://api.sunbird.ai',
+  ])('rejects non-HTTPS Sunbird base URL %s', (value) => {
+    expect(() => loadEnvironment({
+      NODE_ENV: 'test',
+      SUNBIRD_BASE_URL: value,
+    })).toThrow('Invalid backend configuration: SUNBIRD_BASE_URL: Sunbird base URL must use HTTPS');
+  });
+
+  it.each([
+    'not a URL',
+    'api.sunbird.ai',
+  ])('rejects malformed Sunbird base URL %s', (value) => {
+    expect(() => loadEnvironment({
+      NODE_ENV: 'test',
+      SUNBIRD_BASE_URL: value,
+    })).toThrow('Invalid backend configuration: SUNBIRD_BASE_URL: Invalid URL');
   });
 
   it('keeps the backend deadline below the frontend timeout', () => {

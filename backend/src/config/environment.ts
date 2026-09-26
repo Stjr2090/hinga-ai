@@ -54,7 +54,10 @@ const environmentSchema = z.object({
   GROQ_FALLBACK_MODEL: z.string().min(1).default('openai/gpt-oss-120b'),
   ADVISORY_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30_000).default(10_000),
   SUNBIRD_API_TOKEN: z.string().min(1).optional(),
-  SUNBIRD_BASE_URL: z.string().url().default('https://api.sunbird.ai'),
+  SUNBIRD_BASE_URL: z.string().url().refine(
+    (value) => /^https:\/\//i.test(value),
+    { message: 'Sunbird base URL must use HTTPS' },
+  ).default('https://api.sunbird.ai'),
   TRANSLATION_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30_000).default(15_000),
   ENABLED_EXPERIMENTAL_LANGUAGES: enabledExperimentalLanguagesSchema,
 });
