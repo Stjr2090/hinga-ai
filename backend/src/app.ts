@@ -6,7 +6,6 @@ import Fastify, { type FastifyInstance, LogController } from 'fastify';
 import type { Environment } from './config/environment.js';
 import { registerChatRoute } from './routes/chat.js';
 import { registerHealthRoute } from './routes/health.js';
-import { registerWeatherRoute } from './routes/weather.js';
 import type { AdvisoryService } from './services/advisory.js';
 import { createGroqAdvisoryService } from './services/groqAdvisory.js';
 import { createLocalizedAdvisoryService } from './services/localizedAdvisory.js';
@@ -145,7 +144,6 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     options.environment.ENABLED_EXPERIMENTAL_LANGUAGES,
     options.environment.REQUEST_DEADLINE_MS,
   );
-  await registerWeatherRoute(app, weatherProvider);
 
   return app;
 }

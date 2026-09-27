@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildApp } from '../src/app.js';
 import { loadEnvironment } from '../src/config/environment.js';
 import { AdvisoryUnavailableError, type AdvisoryService } from '../src/services/advisory.js';
+import { createWeatherAwareAdvisoryService } from '../src/services/weatherAwareAdvisory.js';
 import { WeatherProviderError, type WeatherForecast, type WeatherProvider } from '../src/weather/types.js';
 
 const applications: Awaited<ReturnType<typeof buildApp>>[] = [];
@@ -79,6 +80,7 @@ describe('HINGA backend', () => {
 
     expect(environment.GROQ_PRIMARY_MODEL).toBe('openai/gpt-oss-20b');
     expect(environment.GROQ_FALLBACK_MODEL).toBe('openai/gpt-oss-120b');
+    expect(environment.SUNBIRD_BASE_URL).toBe('https://api.sunbird.ai');
     expect(environment.REQUEST_DEADLINE_MS).toBe(25_000);
     expect(environment.TRANSLATION_TIMEOUT_MS).toBe(15_000);
     expect(environment.ENABLED_EXPERIMENTAL_LANGUAGES).toEqual([]);
@@ -89,6 +91,56 @@ describe('HINGA backend', () => {
 
     expect(environment.TRANSLATION_TIMEOUT_MS).toBe(15_000);
     expect(environment.REQUEST_DEADLINE_MS).toBe(25_000);
+  });
+
+  it.each([
+    'https://api.sunbird.ai',
+    'https://sunbird.test.example/v2',
+  ])('accepts HTTPS Sunbird base URL %s', (value) => {
+    expect(loadEnvironment({
+      NODE_ENV: 'test',
+      SUNBIRD_BASE_URL: value,
+    }).SUNBIRD_BASE_URL).toBe(value);
+  });
+
+  it.each([
+    'http://api.sunbird.ai',
+    'ftp://api.sunbird.ai',
+  ])('rejects non-HTTPS Sunbird base URL %s', (value) => {
+    expect(() => loadEnvironment({
+      NODE_ENV: 'test',
+      SUNBIRD_BASE_URL: value,
+    })).toThrow('Invalid backend configuration: SUNBIRD_BASE_URL: Sunbird base URL must use HTTPS');
+  });
+
+  it.each([
+    'not a URL',
+    'api.sunbird.ai',
+  ])('rejects malformed Sunbird base URL %s', (value) => {
+    expect(() => loadEnvironment({
+      NODE_ENV: 'test',
+      SUNBIRD_BASE_URL: value,
+    })).toThrow('Invalid backend configuration: SUNBIRD_BASE_URL: Invalid URL');
+  });
+
+  it.each([
+    'https://api.open-meteo.com/v1',
+    'https://weather.test.example/v2',
+  ])('accepts HTTPS Open-Meteo base URL %s', (value) => {
+    expect(loadEnvironment({
+      NODE_ENV: 'test',
+      OPEN_METEO_BASE_URL: value,
+    }).OPEN_METEO_BASE_URL).toBe(value);
+  });
+
+  it.each([
+    'http://api.open-meteo.com/v1',
+    'ftp://api.open-meteo.com/v1',
+  ])('rejects non-HTTPS Open-Meteo base URL %s', (value) => {
+    expect(() => loadEnvironment({
+      NODE_ENV: 'test',
+      OPEN_METEO_BASE_URL: value,
+    })).toThrow('Invalid backend configuration: OPEN_METEO_BASE_URL: Open-Meteo base URL must use HTTPS');
   });
 
   it('keeps the backend deadline below the frontend timeout', () => {
@@ -153,15 +205,15 @@ describe('HINGA backend', () => {
     expect(response.json().requestId).toBeTruthy();
   });
 
-  it('rejects invalid chat input', async () => {
+  it.each([
+    { message: '', language: 'en' },
+    { message: 'Should I plant maize today?', language: 'unsupported' },
+  ])('rejects invalid chat input %j', async (payload) => {
     const app = await createTestApp();
     const response = await app.inject({
       method: 'POST',
       url: '/api/chat',
-      payload: {
-        message: '',
-        language: 'unsupported',
-      },
+      payload,
     });
 
     expect(response.statusCode).toBe(400);
@@ -187,25 +239,8 @@ describe('HINGA backend', () => {
     });
   });
 
-  it('keeps experimental languages outside the production API', async () => {
+  it('accepts Runyankore without an experimental allowlist', async () => {
     const app = await createTestApp();
-    const response = await app.inject({
-      method: 'POST',
-      url: '/api/chat',
-      payload: {
-        message: 'Mbiibire ebicoori eriizooba?',
-        language: 'nyn',
-      },
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json().error.code).toBe('VALIDATION_ERROR');
-  });
-
-  it('accepts an explicitly enabled experimental language', async () => {
-    const app = await createTestApp(testWeatherProvider, testAdvisoryService, {
-      ENABLED_EXPERIMENTAL_LANGUAGES: 'nyn',
-    });
     const response = await app.inject({
       method: 'POST',
       url: '/api/chat',
@@ -222,15 +257,10 @@ describe('HINGA backend', () => {
     });
   });
 
-  it.each([
-    ['', []],
-    ['nyn', ['nyn']],
-    [' nyn ', ['nyn']],
-  ] as const)('parses valid experimental language configuration %j', (value, expected) => {
+  it('keeps the experimental allowlist empty by default', () => {
     expect(loadEnvironment({
       NODE_ENV: 'test',
-      ENABLED_EXPERIMENTAL_LANGUAGES: value,
-    }).ENABLED_EXPERIMENTAL_LANGUAGES).toEqual(expected);
+    }).ENABLED_EXPERIMENTAL_LANGUAGES).toEqual([]);
   });
 
   it.each([
@@ -240,7 +270,8 @@ describe('HINGA backend', () => {
     ['nyn,,nyn', 'Experimental language codes must be non-empty'],
     ['unknown', 'Unknown or non-experimental language codes: unknown'],
     ['en', 'Unknown or non-experimental language codes: en'],
-    ['nyn,en', 'Unknown or non-experimental language codes: en'],
+    ['nyn', 'Unknown or non-experimental language codes: nyn'],
+    ['nyn,en', 'Unknown or non-experimental language codes: nyn, en'],
   ])('rejects invalid experimental language configuration %j', (value, message) => {
     expect(() => loadEnvironment({
       NODE_ENV: 'test',
@@ -248,7 +279,7 @@ describe('HINGA backend', () => {
     })).toThrow(message);
   });
 
-  it.each(['en', 'lg'] as const)('accepts production language %s independently', async (language) => {
+  it.each(['en', 'lg', 'nyn'] as const)('accepts production language %s independently', async (language) => {
     const app = await createTestApp();
     const response = await app.inject({
       method: 'POST',
@@ -322,37 +353,78 @@ describe('HINGA backend', () => {
     });
   });
 
-  it('returns validated weather and deterministic risks', async () => {
-    const app = await createTestApp();
+  it('returns weather-grounded English advice with attribution through chat', async () => {
+    const generate = vi.fn().mockResolvedValue({
+      answer: 'Wait for safer conditions.',
+      source: 'groq',
+    });
+    const getForecast = vi.fn().mockResolvedValue(weatherForecast);
+    const advisoryService = createWeatherAwareAdvisoryService(
+      { generate },
+      { getForecast },
+    );
+    const app = await createTestApp(testWeatherProvider, advisoryService);
     const response = await app.inject({
-      method: 'GET',
-      url: '/api/weather?latitude=0.3476&longitude=32.5825',
+      method: 'POST',
+      url: '/api/chat',
+      payload: {
+        message: 'Should I plant maize today?',
+        language: 'en',
+        location: weatherForecast.coordinates,
+      },
     });
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      forecast: {
-        source: 'open-meteo',
+      language: 'en',
+      source: 'groq',
+      sources: [{
+        provider: 'open-meteo',
+        attribution: 'Weather data by Open-Meteo.com',
         timezone: 'Africa/Kampala',
-      },
-      risks: [{ code: 'HEAVY_RAIN', severity: 'high' }],
+      }],
     });
+    expect(getForecast).toHaveBeenCalledWith(weatherForecast.coordinates, expect.any(AbortSignal));
+    expect(generate).toHaveBeenCalledWith(expect.objectContaining({
+      weather: {
+        forecast: weatherForecast,
+        risks: [{ code: 'HEAVY_RAIN', severity: 'high', value: 24, unit: 'mm' }],
+      },
+    }));
   });
 
-  it('rejects invalid weather coordinates', async () => {
+  it('does not expose the retired public weather route', async () => {
     const app = await createTestApp();
     const response = await app.inject({
       method: 'GET',
-      url: '/api/weather?latitude=200&longitude=32.5825',
+      url: '/api/weather',
     });
 
-    expect(response.statusCode).toBe(400);
-    expect(response.json().error.code).toBe('VALIDATION_ERROR');
+    expect(response.statusCode).toBe(404);
+    expect(response.json().error.code).toBe('NOT_FOUND');
+  });
+
+  it('keeps location-free chat unchanged', async () => {
+    const app = await createTestApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/chat',
+      payload: { message: 'How should I prepare maize seed?', language: 'en' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      answer: 'Test agricultural guidance.',
+      language: 'en',
+      source: 'groq',
+    });
+    expect(response.json()).not.toHaveProperty('sources');
   });
 
   it('logs only safe request and provider diagnostics', async () => {
     const groqKey = 'gsk_unique_runtime_log_secret_7f1d';
     const farmerMessage = 'unique farmer message 3a96 about private field conditions';
+    const weatherMessage = 'unique weather message 52dd about private field conditions';
     const authorization = 'Bearer unique-authorization-value-84c2';
     const latitude = '1.234567';
     const longitude = '31.765432';
@@ -375,7 +447,7 @@ describe('HINGA backend', () => {
     });
     const app = await buildApp({
       environment,
-      advisoryService,
+      advisoryService: createWeatherAwareAdvisoryService(advisoryService, weatherProvider),
       weatherProvider,
       loggerStream: { write: (message) => logLines.push(message) },
     });
@@ -388,9 +460,14 @@ describe('HINGA backend', () => {
       payload: { message: farmerMessage, language: 'en' },
     });
     const weatherResponse = await app.inject({
-      method: 'GET',
-      url: `/api/weather?latitude=${latitude}&longitude=${longitude}`,
+      method: 'POST',
+      url: '/api/chat',
       headers: { authorization },
+      payload: {
+        message: weatherMessage,
+        language: 'en',
+        location: { latitude: Number(latitude), longitude: Number(longitude) },
+      },
     });
     const logs = logLines.join('');
     const fingerprint = createHash('sha256').update(groqKey).digest('hex').slice(0, 12);
@@ -400,6 +477,7 @@ describe('HINGA backend', () => {
     expect(logs).not.toContain(groqKey);
     expect(logs).not.toContain(fingerprint);
     expect(logs).not.toContain(farmerMessage);
+    expect(logs).not.toContain(weatherMessage);
     expect(logs).not.toContain(latitude);
     expect(logs).not.toContain(longitude);
     expect(logs).not.toContain(authorization);
@@ -408,8 +486,7 @@ describe('HINGA backend', () => {
     expect(logs).toContain('"route":"/api/chat"');
     expect(logs).toContain('"status":500');
     expect(logs).toMatch(/"durationMilliseconds":\d+/);
-    expect(logs).toContain('"provider":"open-meteo"');
-    expect(logs).toContain('"failureClassification":"UPSTREAM_ERROR"');
+    expect(logs).not.toContain(environment.OPEN_METEO_BASE_URL);
     expect(logs).toContain('"failureClassification":"UNEXPECTED_ERROR"');
   });
 });

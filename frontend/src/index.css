@@ -29,15 +29,12 @@
   overflow: hidden;
 }
 
-.brand-mark, .mobile-brand-mark {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  color: white;
-  background: #2d5a27;
-  border-radius: 11px;
-}
+.hinga-logo { display: block; flex: 0 0 auto; overflow: hidden; }
+.hinga-logo img { display: block; width: 100%; height: auto; }
+.onboarding-logo { width: 180px; height: 72px; margin: 0 auto; }
+.onboarding-logo img { transform: translateY(-54px); }
+.header-logo { width: 110px; height: 40px; }
+.header-logo img { width: 190px; max-width: none; transform: translate(-50px, -66px); }
 
 .language-menu { position: relative; }
 
@@ -50,10 +47,9 @@
   min-height: 68px; padding: 12px clamp(18px, 4vw, 40px); display: flex; align-items: center; justify-content: space-between;
   background: rgba(251,252,250,.92); border-bottom: 1px solid #e8ebe5; backdrop-filter: blur(12px); z-index: 10;
 }
-.conversation-header h1 { margin: 0; color: #233122; font-size: 15px; font-weight: 650; letter-spacing: -.015em; }
-.conversation-header p { margin: 3px 0 0; color: #7b8478; font-size: 10px; }
+.header-identity { display: flex; flex-direction: column; align-items: flex-start; width: 175px; }
+.header-identity p { margin: -7px 0 0 38px; color: #7b8478; font-size: 8px; line-height: 1.2; white-space: nowrap; }
 .header-brand, .header-actions { display: flex; align-items: center; gap: 10px; }
-.mobile-brand-mark { width: 34px; height: 34px; }
 .header-new-chat { display: flex; align-items: center; gap: 7px; padding: 8px 10px; color: #526050; background: transparent; border: 0; border-radius: 9px; font-size: 11px; font-weight: 600; }
 .header-new-chat:hover { background: #eef2eb; }
 .header-new-chat:disabled { opacity: .5; cursor: not-allowed; }
@@ -77,9 +73,6 @@
 .language-popover strong { font-size: 11px; }
 .language-popover small { color: #899187; font-size: 9px; }
 
-.experimental-notice { display: flex; align-items: flex-start; gap: 9px; width: 100%; padding: 11px 12px; color: #66562b; background: #fbf7e9; border: 1px solid #e9dfbc; border-radius: 11px; font-size: 11px; line-height: 1.5; }
-.experimental-notice svg { flex: 0 0 auto; margin-top: 1px; }
-.experimental-notice strong { display: block; color: #51441f; margin-bottom: 2px; }
 
 .message-list { flex: 1; overflow-y: auto; width: min(760px, 100%); margin: 0 auto; padding: 30px 20px; display: flex; flex-direction: column; gap: 22px; }
 
@@ -88,6 +81,8 @@
 .message-farmer { align-self: flex-end; max-width: 80%; padding: 11px 14px; background: #edf1ea; border-radius: 14px 14px 4px 14px; }
 .message-assistant { align-self: stretch; gap: 12px; }
 .assistant-mark { display: grid; place-items: center; flex: 0 0 auto; width: 30px; height: 30px; color: #2d5a27; background: #e5eee1; border-radius: 9px; }
+.assistant-logo { width: 18px; height: 18px; }
+.assistant-logo img { width: 82px; max-width: none; transform: translate(-20px, -28px); }
 
 .source-note {
   display: flex; align-items: center; gap: 5px; margin-top: 10px; padding-top: 9px;
@@ -95,7 +90,8 @@
 }
 
 .empty-state { width: min(560px, 100%); margin: auto; padding: 24px 0; text-align: center; }
-.empty-icon { display: grid; place-items: center; width: 48px; height: 48px; margin: 0 auto 18px; color: #2d5a27; background: #e6eee2; border-radius: 14px; }
+.empty-logo { width: 48px; height: 48px; margin: 0 auto 18px; }
+.empty-logo img { width: 218px; max-width: none; transform: translate(-52px, -75px); }
 .empty-state h2 { margin: 0; color: #243123; font-size: clamp(22px, 3vw, 28px); letter-spacing: -.035em; }
 .empty-state > p { margin: 9px auto 25px; color: #788276; font-size: 13px; }
 .starter-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: left; }
@@ -148,6 +144,13 @@
 @media (max-width: 720px) {
   .conversation-panel { width: 100%; border: 0; }
   .conversation-header { min-height: 66px; padding: 12px 16px; }
+  .header-brand { gap: 6px; }
+  .header-actions { gap: 4px; }
+  .header-identity { width: 150px; }
+  .header-identity p { margin-left: 29px; font-size: 7px; }
+  .header-logo { width: 90px; height: 32px; }
+  .header-logo img { width: 150px; transform: translate(-40px, -52px); }
+  .header-new-chat { padding-inline: 4px; }
   .message-list { padding: 22px 16px; }
   .composer-wrap { padding: 0 12px 12px; }
   .message-farmer { max-width: 90%; }

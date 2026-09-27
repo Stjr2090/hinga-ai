@@ -112,7 +112,7 @@ describe('Sunbird translation provider', () => {
     expect(request).not.toHaveBeenCalled();
   });
 
-  it('uses the registry code for experimental Runyankole fixtures', async () => {
+  it('uses the registry code for Runyankore fixtures', async () => {
     const request = vi.fn().mockResolvedValue(createResponse({
       translated_text: 'Ninteekateeka ryari ebicoori?',
       source_language: 'eng',
@@ -132,9 +132,31 @@ describe('Sunbird translation provider', () => {
       direction: 'en->nyn',
       source: 'sunbird',
     });
+    expect(request).toHaveBeenCalledOnce();
     expect(JSON.parse(request.mock.calls[0][1].body as string)).toMatchObject({
       source_language: 'eng',
       target_language: 'nyn',
+    });
+  });
+
+  it('sends the Runyankore input using the nyn to eng provider direction', async () => {
+    const request = vi.fn().mockResolvedValue(createResponse({
+      translated_text: 'When should I plant maize?',
+      source_language: 'nyn',
+      target_language: 'eng',
+      Error: null,
+    }));
+    const provider = createSunbirdTranslationProvider(options, request);
+
+    await expect(provider.translate({
+      text: 'Mbiibire ebicoori eriizooba?',
+      sourceLanguage: 'nyn',
+      targetLanguage: 'en',
+    })).resolves.toMatchObject({ direction: 'nyn->en' });
+    expect(request).toHaveBeenCalledOnce();
+    expect(JSON.parse(request.mock.calls[0][1].body as string)).toMatchObject({
+      source_language: 'nyn',
+      target_language: 'eng',
     });
   });
 

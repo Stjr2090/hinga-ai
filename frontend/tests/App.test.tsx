@@ -7,9 +7,8 @@ vi.mock('../src/services/assistantService', async (importOriginal) => {
   return { ...original, getAssistantResponse: vi.fn() };
 });
 
-async function loadFrontend(experimentalLanguages = '') {
+async function loadFrontend() {
   vi.resetModules();
-  vi.stubEnv('VITE_ENABLED_EXPERIMENTAL_LANGUAGES', experimentalLanguages);
   const service = await import('../src/services/assistantService');
   const App = (await import('../src/App')).default;
   const mockedAssistant = vi.mocked(service.getAssistantResponse);
@@ -30,12 +29,18 @@ describe('App prompt flow', () => {
     const user = userEvent.setup();
 
     render(<App />);
+    expect(screen.getByRole('img', { name: 'HINGA' })).toBeVisible();
     await user.type(screen.getByPlaceholderText(/Ask a farming question/), 'How do I prepare my field?');
     await user.click(screen.getByRole('button', { name: 'Send question' }));
 
-    expect(await screen.findByText('Prepare a fine seedbed and confirm soil moisture before planting.')).toBeVisible();
+    const response = await screen.findByText('Prepare a fine seedbed and confirm soil moisture before planting.');
+    expect(response).toBeVisible();
+    const assistantMark = response.closest('.message-assistant')?.querySelector('.assistant-logo img');
+    expect(assistantMark).toHaveAttribute('alt', '');
+    expect(assistantMark).toHaveAttribute('aria-hidden', 'true');
+    expect(assistantMark).toHaveAttribute('src', expect.stringContaining('hinga-logo.svg'));
     expect(screen.getByText('How do I prepare my field?')).toBeVisible();
-    expect(screen.getByRole('heading', { name: 'Hinga AI' })).toBeVisible();
+    expect(screen.getByText('Your agricultural advisory assistant')).toBeVisible();
   });
 
   it('shows a retry error without replacing the application', async () => {
@@ -49,7 +54,7 @@ describe('App prompt flow', () => {
 
     expect(await screen.findByText('Service temporarily unavailable.')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeVisible();
-    expect(screen.getByRole('heading', { name: 'Hinga AI' })).toBeVisible();
+    expect(screen.getByText('Your agricultural advisory assistant')).toBeVisible();
   });
 
   it('translates the complete chat interface when Luganda is selected', async () => {
@@ -58,7 +63,7 @@ describe('App prompt flow', () => {
 
     render(<App />);
 
-    expect(screen.getByText(/Omuwabuzi/)).toBeVisible();
+    expect(screen.getByText('Omuwabuzi wo ow’ebyobulimi')).toBeVisible();
     expect(screen.getByRole('heading', { name: 'Hinga ekuyambe etya leero?' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Tandika emboozi empya' })).toBeVisible();
     expect(screen.getByPlaceholderText(/Buuza ekibuuzo/)).toBeVisible();
@@ -67,80 +72,60 @@ describe('App prompt flow', () => {
     expect(screen.queryByText('How can Hinga help today?')).not.toBeInTheDocument();
   });
 
-  it('exposes only English and Luganda by default and cannot submit nyn', async () => {
+  it('exposes English, Luganda, and Runyankore by default', async () => {
     localStorage.clear();
-    const { App, mockedAssistant } = await loadFrontend();
-    mockedAssistant.mockResolvedValue({ requestId: 'english', answer: 'Advice.', language: 'en', source: 'groq' });
-    const user = userEvent.setup();
+    const { App } = await loadFrontend();
 
     render(<App />);
+    expect(screen.getByRole('img', { name: 'HINGA' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'English, Supported' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Luganda, Supported' })).toBeVisible();
-    expect(screen.queryByRole('button', { name: 'Runyankore, Experimental' })).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'English, Supported' }));
-    await user.click(screen.getByRole('button', { name: 'English' }));
-    expect(screen.queryByRole('menuitemradio', { name: 'Runyankore, Experimental' })).not.toBeInTheDocument();
-
-    await user.type(screen.getByPlaceholderText(/Ask a farming question/), 'How should I store maize?');
-    await user.click(screen.getByRole('button', { name: 'Send question' }));
-    expect(mockedAssistant).toHaveBeenCalledWith('How should I store maize?', 'en', undefined);
-    expect(mockedAssistant.mock.calls.some((call) => call[1] === 'nyn')).toBe(false);
+    expect(screen.getByRole('button', { name: 'Runyankore, Supported' })).toBeVisible();
+    expect(screen.queryByText(/Experimental Runyankore/)).not.toBeInTheDocument();
   });
 
-  it('enables nyn with its experimental label, warning, and chat language', async () => {
+  it('uses Runyankore interface copy and nyn for chat submission', async () => {
     localStorage.clear();
-    const { App, mockedAssistant } = await loadFrontend('nyn');
+    const { App, mockedAssistant } = await loadFrontend();
     mockedAssistant.mockResolvedValue({ requestId: 'runyankore-response', answer: 'Eki ni ekyokugarukamu omu Runyankore.', language: 'nyn', source: 'groq' });
     const user = userEvent.setup();
 
     render(<App />);
-    const runyankore = screen.getByRole('button', { name: 'Runyankore, Experimental' });
+    const runyankore = screen.getByRole('button', { name: 'Runyankore, Supported' });
     expect(runyankore).toBeVisible();
     await user.click(runyankore);
 
     expect(localStorage.getItem('hinga-primary-language')).toBe('nyn');
-    expect(screen.getByText('Experimental Runyankore')).toBeVisible();
-    await user.type(screen.getByPlaceholderText(/Ask a farming question/), 'How should I store maize?');
-    await user.click(screen.getByRole('button', { name: 'Send question' }));
+    expect(screen.getByText("Omuhwezi waawe omu by'obuhingi n'oburiisa")).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Hinga neebaasa kuhwera eta eriizooba?' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Okugaaniira okusya' })).toBeVisible();
+    expect(screen.getByRole('button', { name: "Oyongyereho omwanya gw'obwire bw'omwihanga" })).toBeVisible();
+    expect(screen.queryByText('Your agricultural advisory assistant')).not.toBeInTheDocument();
+    expect(screen.queryByText('How can Hinga help today?')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'New conversation' })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Experimental Runyankore/)).not.toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText(/Buuza ekibuuzo/), 'How should I store maize?');
+    await user.click(screen.getByRole('button', { name: 'Oheereze ekibuuzo' }));
     expect(mockedAssistant).toHaveBeenCalledWith('How should I store maize?', 'nyn', undefined);
     expect(await screen.findByText('Eki ni ekyokugarukamu omu Runyankore.')).toBeVisible();
   });
 
-  it('trims surrounding whitespace in the experimental allowlist', async () => {
-    localStorage.clear();
-    const { App } = await loadFrontend('  nyn  ');
-
-    render(<App />);
-
-    expect(screen.getByRole('button', { name: 'Runyankore, Experimental' })).toBeVisible();
-  });
-
-  it('restores a saved nyn preference only when enabled', async () => {
-    localStorage.setItem('hinga-primary-language', 'nyn');
-    const { App } = await loadFrontend('nyn');
-
-    render(<App />);
-
-    expect(screen.getByText('Experimental Runyankore')).toBeVisible();
-    expect(screen.getByRole('button', { name: /Runyankore.*Experimental/ })).toBeVisible();
-    expect(localStorage.getItem('hinga-primary-language')).toBe('nyn');
-  });
-
-  it('corrects a disabled saved nyn preference to en', async () => {
+  it('restores a saved nyn preference normally', async () => {
     localStorage.setItem('hinga-primary-language', 'nyn');
     const { App } = await loadFrontend();
 
     render(<App />);
 
-    expect(screen.getByRole('button', { name: 'English' })).toBeVisible();
-    expect(screen.queryByText('Experimental Runyankore')).not.toBeInTheDocument();
-    expect(localStorage.getItem('hinga-primary-language')).toBe('en');
+    expect(screen.getByRole('button', { name: 'Runyankore' })).toBeVisible();
+    expect(screen.getByText("Omuhwezi waawe omu by'obuhingi n'oburiisa")).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Oheereze ekibuuzo' })).toBeVisible();
+    expect(screen.queryByText('Your agricultural advisory assistant')).not.toBeInTheDocument();
+    expect(localStorage.getItem('hinga-primary-language')).toBe('nyn');
   });
 
   it('corrects an unknown saved preference to en', async () => {
     localStorage.setItem('hinga-primary-language', 'unknown');
-    const { App } = await loadFrontend('nyn');
+    const { App } = await loadFrontend();
 
     render(<App />);
 
@@ -148,21 +133,4 @@ describe('App prompt flow', () => {
     expect(localStorage.getItem('hinga-primary-language')).toBe('en');
   });
 
-  it.each([
-    ['unknown code', 'xyz'],
-    ['production code', 'en'],
-    ['duplicate code', 'nyn,nyn'],
-    ['empty segment', 'nyn,'],
-    ['mixed valid and invalid codes', 'nyn,xyz'],
-    ['malformed input', 'nyn!'],
-  ])('rejects %s in the experimental allowlist', async (_case, value) => {
-    localStorage.clear();
-    const { App } = await loadFrontend(value);
-
-    render(<App />);
-
-    expect(screen.getByRole('button', { name: 'English, Supported' })).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Luganda, Supported' })).toBeVisible();
-    expect(screen.queryByRole('button', { name: 'Runyankore, Experimental' })).not.toBeInTheDocument();
-  });
 });
