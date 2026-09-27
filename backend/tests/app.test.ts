@@ -185,15 +185,15 @@ describe('HINGA backend', () => {
     expect(response.json().requestId).toBeTruthy();
   });
 
-  it('rejects invalid chat input', async () => {
+  it.each([
+    { message: '', language: 'en' },
+    { message: 'Should I plant maize today?', language: 'unsupported' },
+  ])('rejects invalid chat input %j', async (payload) => {
     const app = await createTestApp();
     const response = await app.inject({
       method: 'POST',
       url: '/api/chat',
-      payload: {
-        message: '',
-        language: 'unsupported',
-      },
+      payload,
     });
 
     expect(response.statusCode).toBe(400);
@@ -219,25 +219,8 @@ describe('HINGA backend', () => {
     });
   });
 
-  it('keeps experimental languages outside the production API', async () => {
+  it('accepts Runyankore without an experimental allowlist', async () => {
     const app = await createTestApp();
-    const response = await app.inject({
-      method: 'POST',
-      url: '/api/chat',
-      payload: {
-        message: 'Mbiibire ebicoori eriizooba?',
-        language: 'nyn',
-      },
-    });
-
-    expect(response.statusCode).toBe(400);
-    expect(response.json().error.code).toBe('VALIDATION_ERROR');
-  });
-
-  it('accepts an explicitly enabled experimental language', async () => {
-    const app = await createTestApp(testWeatherProvider, testAdvisoryService, {
-      ENABLED_EXPERIMENTAL_LANGUAGES: 'nyn',
-    });
     const response = await app.inject({
       method: 'POST',
       url: '/api/chat',
@@ -254,15 +237,10 @@ describe('HINGA backend', () => {
     });
   });
 
-  it.each([
-    ['', []],
-    ['nyn', ['nyn']],
-    [' nyn ', ['nyn']],
-  ] as const)('parses valid experimental language configuration %j', (value, expected) => {
+  it('keeps the experimental allowlist empty by default', () => {
     expect(loadEnvironment({
       NODE_ENV: 'test',
-      ENABLED_EXPERIMENTAL_LANGUAGES: value,
-    }).ENABLED_EXPERIMENTAL_LANGUAGES).toEqual(expected);
+    }).ENABLED_EXPERIMENTAL_LANGUAGES).toEqual([]);
   });
 
   it.each([
@@ -272,7 +250,8 @@ describe('HINGA backend', () => {
     ['nyn,,nyn', 'Experimental language codes must be non-empty'],
     ['unknown', 'Unknown or non-experimental language codes: unknown'],
     ['en', 'Unknown or non-experimental language codes: en'],
-    ['nyn,en', 'Unknown or non-experimental language codes: en'],
+    ['nyn', 'Unknown or non-experimental language codes: nyn'],
+    ['nyn,en', 'Unknown or non-experimental language codes: nyn, en'],
   ])('rejects invalid experimental language configuration %j', (value, message) => {
     expect(() => loadEnvironment({
       NODE_ENV: 'test',
@@ -280,7 +259,7 @@ describe('HINGA backend', () => {
     })).toThrow(message);
   });
 
-  it.each(['en', 'lg'] as const)('accepts production language %s independently', async (language) => {
+  it.each(['en', 'lg', 'nyn'] as const)('accepts production language %s independently', async (language) => {
     const app = await createTestApp();
     const response = await app.inject({
       method: 'POST',

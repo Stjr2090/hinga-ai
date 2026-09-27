@@ -73,9 +73,6 @@
 .language-popover strong { font-size: 11px; }
 .language-popover small { color: #899187; font-size: 9px; }
 
-.experimental-notice { display: flex; align-items: flex-start; gap: 9px; width: 100%; padding: 11px 12px; color: #66562b; background: #fbf7e9; border: 1px solid #e9dfbc; border-radius: 11px; font-size: 11px; line-height: 1.5; }
-.experimental-notice svg { flex: 0 0 auto; margin-top: 1px; }
-.experimental-notice strong { display: block; color: #51441f; margin-bottom: 2px; }
 
 .message-list { flex: 1; overflow-y: auto; width: min(760px, 100%); margin: 0 auto; padding: 30px 20px; display: flex; flex-direction: column; gap: 22px; }
 
@@ -84,6 +81,8 @@
 .message-farmer { align-self: flex-end; max-width: 80%; padding: 11px 14px; background: #edf1ea; border-radius: 14px 14px 4px 14px; }
 .message-assistant { align-self: stretch; gap: 12px; }
 .assistant-mark { display: grid; place-items: center; flex: 0 0 auto; width: 30px; height: 30px; color: #2d5a27; background: #e5eee1; border-radius: 9px; }
+.assistant-logo { width: 18px; height: 18px; }
+.assistant-logo img { width: 82px; max-width: none; transform: translate(-20px, -28px); }
 
 .source-note {
   display: flex; align-items: center; gap: 5px; margin-top: 10px; padding-top: 9px;

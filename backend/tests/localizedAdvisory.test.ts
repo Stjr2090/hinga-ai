@@ -44,6 +44,8 @@ describe('Localized advisory service', () => {
         message: localQuestion,
         language,
       })).resolves.toEqual({ answer: localAnswer, source: 'groq' });
+      expect(translate).toHaveBeenCalledTimes(2);
+      expect(generate).toHaveBeenCalledOnce();
       expect(generate).toHaveBeenCalledWith({
         message: englishQuestion,
         language: 'en',

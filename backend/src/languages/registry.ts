@@ -34,7 +34,7 @@ export const languageRegistry = {
   },
   nyn: {
     displayName: 'Runyankole',
-    lifecycle: 'experimental',
+    lifecycle: 'production',
     providerCodes: { sunbird: 'nyn' },
     directions: { toEnglish: true, fromEnglish: true },
     validation: { status: 'reviewed-blocked', reviewedPhrases: 40, requiredPhrases: 40 },
@@ -54,7 +54,7 @@ export const productionLanguageCodes = languageCodes.filter(
   (code): code is ProductionLanguageCode => languageRegistry[code].lifecycle === 'production',
 );
 export const experimentalLanguageCodes = languageCodes.filter(
-  (code): code is ExperimentalLanguageCode => languageRegistry[code].lifecycle === 'experimental',
+  (code): code is ExperimentalLanguageCode => (languageRegistry[code].lifecycle as LanguageLifecycle) === 'experimental',
 );
 
 export function isLanguageCode(value: unknown): value is LanguageCode {
@@ -66,7 +66,7 @@ export function isProductionLanguage(value: unknown): value is ProductionLanguag
 }
 
 export function isExperimentalLanguage(value: unknown): value is ExperimentalLanguageCode {
-  return isLanguageCode(value) && languageRegistry[value].lifecycle === 'experimental';
+  return isLanguageCode(value) && (languageRegistry[value].lifecycle as LanguageLifecycle) === 'experimental';
 }
 
 export function isEnabledLanguage(

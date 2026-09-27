@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, Check, ChevronDown, CloudRain, Globe, Leaf, MapPin, Plus, Send, ShieldCheck } from 'lucide-react';
+import { AlertCircle, Check, ChevronDown, CloudRain, Globe, MapPin, Plus, Send, ShieldCheck } from 'lucide-react';
 import hingaLogoUrl from './assets/hinga-logo.svg';
 import {
   AssistantServiceError,
@@ -32,8 +32,7 @@ function HingaLogo({ className, decorative = false }: { className: string; decor
 }
 
 const LANGUAGE_KEY = 'hinga-primary-language';
-const COPY = {
-  en: {
+const ENGLISH_COPY = {
     name: 'English', languageName: 'English', assistant: 'Your agricultural advisory assistant', newChat: 'New conversation',
     emptyTitle: 'How can Hinga help today?', welcome: 'Ask about weather, planting, crop care, or farm planning.',
     placeholder: 'Ask a farming question…', thinking: 'Preparing your advice…', translationThinking: 'Preparing your translation…', send: 'Send question',
@@ -43,7 +42,12 @@ const COPY = {
     locationDenied: 'Location access was not granted. You can still ask general farming questions.',
     requestFailed: 'Something went wrong. Please try again.', weatherSource: 'Weather by Open-Meteo',
     safety: 'Advice may be uncertain. Confirm critical decisions locally.',
-  },
+} as const;
+
+type InterfaceCopy = Record<keyof typeof ENGLISH_COPY, string>;
+
+const COPY = {
+  en: ENGLISH_COPY,
   lg: {
     name: 'Luganda', languageName: 'Oluganda', assistant: 'Omuwabuzi wo ow’ebyobulimi', newChat: 'Tandika emboozi empya',
     emptyTitle: 'Hinga ekuyambe etya leero?', welcome: 'Buuza ku mbeera y’obudde, okusimba, okulabirira ebirime, oba okuteekateeka ennimiro.',
@@ -55,11 +59,23 @@ const COPY = {
     requestFailed: 'Waliwo ekitagenze bulungi. Ddamu ogezeeko.', weatherSource: 'Obudde okuva ku Open-Meteo',
     safety: 'Amagezi gayinza obutaba makakafu. Kakasa okusalawo okukulu n’omukugu w’omu kitundu.',
   },
-} as const satisfies Record<InterfaceLanguage, Record<string, string>>;
+  nyn: {
+    name: 'Runyankore', languageName: 'Runyankore', assistant: "Omuhwezi waawe omu by'obuhingi n'oburiisa", newChat: 'Okugaaniira okusya',
+    emptyTitle: 'Hinga neebaasa kuhwera eta eriizooba?', welcome: "Buuza aha mbeera y'obwire, okubyara, okureeberera ebihingwa, nainga okuteekateekyera faamu.",
+    placeholder: "Buuza ekibuuzo ky'eby'obuhingi…", thinking: 'Okutebeekanisa obuhabuzi bwawe…', translationThinking: 'Okutebeekanisa okuvunuura kwawe…', send: 'Oheereze ekibuuzo',
+    locationOn: 'Omwanya guriho', locationOff: "Oyongyereho omwanya gw'obwire bw'omwihanga", useLocation: 'Kozesa omwanya gwangye',
+    findingLocation: 'Ninkuronda omwanya…', languageMenu: "Toorana orurimi rw'okugarukamu", retry: 'Gyezaho',
+    locationUnavailable: 'Omwanya tigurikushangwa omu browser egi.',
+    locationDenied: "Okuhikwaho omwanya tikurikwikirizibwa. Nobaasa kubuuza ebibuuzo by'eby'obuhingi ebya boona.",
+    requestFailed: 'Hariho ekintu ekyagyenda kubi. Nyabura we gezaho ogaruke.', weatherSource: "Embeera y'obwire kuruga omuri Open-Meteo",
+    safety: "Okuhaburwa nikubaasa kuba kutari kwesigwa. Hamya okusharamu okw'amaani omu kyanga kyawe.",
+  },
+} as const satisfies Record<InterfaceLanguage, InterfaceCopy>;
 
 const STARTERS: Record<InterfaceLanguage, string[]> = {
   en: ['Will it rain near me today?', 'When should I plant maize?', 'How can I protect crops in a dry spell?'],
   lg: ['Enkuba enaana leero mu kitundu kyange?', 'Nsimbe ddi kasooli?', 'Nkuume ntya ebirime mu kyeya?'],
+  nyn: ['Nihaza kugwa enjura haihi naanye eriizooba?', 'Nshemereire kubyaara ryaari ebicoori?', "Nimbaasa nta kurinda ebihingwa omu bwire bw'ekyanda?"],
 };
 
 function savedLanguage(): SupportedLanguage | null {
@@ -126,7 +142,7 @@ function LanguageMenu({ language, disabled, onChange }: {
         aria-expanded={open}
       >
         <Globe className="w-4 h-4" />
-        <span>{config.displayName}{config.status === 'experimental' && ' · Experimental'}</span>
+        <span>{config.displayName}</span>
         <ChevronDown className="language-chevron" />
       </button>
       {open && (
@@ -136,13 +152,13 @@ function LanguageMenu({ language, disabled, onChange }: {
               type="button"
               role="menuitemradio"
               aria-checked={language === option}
-              aria-label={`${LANGUAGE_CONFIG[option].displayName}, ${LANGUAGE_CONFIG[option].status === 'experimental' ? 'Experimental' : 'Supported'}`}
+              aria-label={`${LANGUAGE_CONFIG[option].displayName}, Supported`}
               key={option}
               onClick={() => { onChange(option); setOpen(false); }}
             >
               <span>
                 <strong>{LANGUAGE_CONFIG[option].displayName}</strong>
-                <small>{LANGUAGE_CONFIG[option].nativeName}{LANGUAGE_CONFIG[option].status === 'experimental' && ' · Experimental'}</small>
+                <small>{LANGUAGE_CONFIG[option].nativeName}</small>
               </span>
               {language === option && <Check className="w-4 h-4" />}
             </button>
@@ -224,12 +240,8 @@ export default function App() {
       }]);
       setLastQuestion(null);
     } catch (caught) {
-      if (language === 'nyn') {
-        setError('Runyankore is temporarily unavailable. Please switch to English or Luganda and try again.');
-      } else {
-        const copy = COPY[getInterfaceLanguage(language)];
-        setError(caught instanceof AssistantServiceError && language === 'en' ? caught.message : copy.requestFailed);
-      }
+      const copy = COPY[getInterfaceLanguage(language)];
+      setError(caught instanceof AssistantServiceError && language === 'en' ? caught.message : copy.requestFailed);
     } finally {
       setLoading(false);
     }
@@ -246,8 +258,7 @@ export default function App() {
           <div className="language-options">
             {enabledLanguages.map((code) => {
               const option = LANGUAGE_CONFIG[code];
-              const status = option.status === 'experimental' ? 'Experimental' : 'Supported';
-              return <button key={code} aria-label={`${option.displayName}, ${status}`} onClick={() => chooseLanguage(code)}><span>{option.displayName}</span><small>{status}</small></button>;
+              return <button key={code} aria-label={`${option.displayName}, Supported`} onClick={() => chooseLanguage(code)}><span>{option.displayName}</span><small>Supported</small></button>;
             })}
           </div>
           <p className="privacy-note"><ShieldCheck className="w-4 h-4" /> Your language preference stays in this browser.</p>
@@ -277,12 +288,6 @@ export default function App() {
         </header>
 
         <main className="message-list">
-          {language === 'nyn' && (
-            <aside className="experimental-notice" aria-label="Experimental language notice">
-              <AlertCircle className="w-4 h-4" />
-              <span><strong>Experimental Runyankore</strong> Runyankore is available for this demo and is still being improved. Confirm important farming, pesticide, disease and storage advice with a local agricultural extension worker.</span>
-            </aside>
-          )}
           {messages.length === 0 && (
             <div className="empty-state">
               <HingaLogo className="empty-logo" decorative />
@@ -296,13 +301,13 @@ export default function App() {
 
           {messages.map((message) => (
               <article key={message.id} className={`message ${message.sender === 'farmer' ? 'message-farmer' : 'message-assistant'}`}>
-                {message.sender === 'assistant' && <div className="assistant-mark"><Leaf className="w-4 h-4" /></div>}
+                {message.sender === 'assistant' && <div className="assistant-mark"><HingaLogo className="assistant-logo" decorative /></div>}
                 <div className="message-content">{message.text}
                 {message.source && <small className="source-note"><CloudRain className="w-3 h-3" /> {copy.weatherSource} · {new Date(message.source.fetchedAt).toLocaleString(copyLanguage === 'lg' ? 'lg-UG' : 'en')}</small>}
                 </div>
               </article>
           ))}
-          {loading && <div className="message message-assistant"><div className="assistant-mark"><Leaf className="w-4 h-4" /></div><div className="loading-message"><span /><span /><span /> {language === 'en' ? copy.thinking : copy.translationThinking}</div></div>}
+          {loading && <div className="message message-assistant"><div className="assistant-mark"><HingaLogo className="assistant-logo" decorative /></div><div className="loading-message"><span /><span /><span /> {language === 'en' ? copy.thinking : copy.translationThinking}</div></div>}
           {error && <div className="error-card"><AlertCircle className="w-4 h-4" /><span>{error}</span>{lastQuestion && <button onClick={() => send(lastQuestion)}>{copy.retry}</button>}</div>}
         </main>
 

@@ -9,21 +9,20 @@ import {
 } from '../src/languages/registry.js';
 
 describe('language registry', () => {
-  it('keeps experimental languages outside the production language list', () => {
-    expect(productionLanguageCodes).toEqual(['en', 'lg']);
-    expect(experimentalLanguageCodes).toEqual(['nyn']);
+  it('includes Runyankore in the production language list', () => {
+    expect(productionLanguageCodes).toEqual(['en', 'lg', 'nyn']);
+    expect(experimentalLanguageCodes).toEqual([]);
     expect(languageRegistry.nyn).toMatchObject({
-      lifecycle: 'experimental',
+      lifecycle: 'production',
       providerCodes: { sunbird: 'nyn' },
       validation: { status: 'reviewed-blocked', reviewedPhrases: 40, requiredPhrases: 40 },
     });
   });
 
-  it('enables experimental languages only through an explicit allowlist', () => {
+  it('enables production languages without an experimental allowlist', () => {
     expect(isEnabledLanguage('en', [])).toBe(true);
     expect(isEnabledLanguage('lg', [])).toBe(true);
-    expect(isEnabledLanguage('nyn', [])).toBe(false);
-    expect(isEnabledLanguage('nyn', ['nyn'])).toBe(true);
+    expect(isEnabledLanguage('nyn', [])).toBe(true);
   });
 
   it.each(languageCodes)('configures English translation directions for %s', (language) => {
