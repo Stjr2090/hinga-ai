@@ -30,12 +30,13 @@ describe('App prompt flow', () => {
     const user = userEvent.setup();
 
     render(<App />);
+    expect(screen.getByRole('img', { name: 'HINGA' })).toBeVisible();
     await user.type(screen.getByPlaceholderText(/Ask a farming question/), 'How do I prepare my field?');
     await user.click(screen.getByRole('button', { name: 'Send question' }));
 
     expect(await screen.findByText('Prepare a fine seedbed and confirm soil moisture before planting.')).toBeVisible();
     expect(screen.getByText('How do I prepare my field?')).toBeVisible();
-    expect(screen.getByRole('heading', { name: 'Hinga AI' })).toBeVisible();
+    expect(screen.getByText('Your agricultural advisory assistant')).toBeVisible();
   });
 
   it('shows a retry error without replacing the application', async () => {
@@ -49,7 +50,7 @@ describe('App prompt flow', () => {
 
     expect(await screen.findByText('Service temporarily unavailable.')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeVisible();
-    expect(screen.getByRole('heading', { name: 'Hinga AI' })).toBeVisible();
+    expect(screen.getByText('Your agricultural advisory assistant')).toBeVisible();
   });
 
   it('translates the complete chat interface when Luganda is selected', async () => {
@@ -58,7 +59,7 @@ describe('App prompt flow', () => {
 
     render(<App />);
 
-    expect(screen.getByText(/Omuwabuzi/)).toBeVisible();
+    expect(screen.getByText('Omuwabuzi wo ow’ebyobulimi')).toBeVisible();
     expect(screen.getByRole('heading', { name: 'Hinga ekuyambe etya leero?' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Tandika emboozi empya' })).toBeVisible();
     expect(screen.getByPlaceholderText(/Buuza ekibuuzo/)).toBeVisible();
@@ -74,6 +75,7 @@ describe('App prompt flow', () => {
     const user = userEvent.setup();
 
     render(<App />);
+    expect(screen.getByRole('img', { name: 'HINGA' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'English, Supported' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Luganda, Supported' })).toBeVisible();
     expect(screen.queryByRole('button', { name: 'Runyankore, Experimental' })).not.toBeInTheDocument();

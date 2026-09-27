@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, Check, ChevronDown, CloudRain, Globe, Leaf, MapPin, Plus, Send, ShieldCheck } from 'lucide-react';
+import hingaLogoUrl from './assets/hinga-logo.svg';
 import {
   AssistantServiceError,
   getAssistantResponse,
@@ -22,10 +23,18 @@ interface Message {
   source?: AdvisorySource;
 }
 
+function HingaLogo({ className, decorative = false }: { className: string; decorative?: boolean }) {
+  return (
+    <span className={`hinga-logo ${className}`}>
+      <img src={hingaLogoUrl} alt={decorative ? '' : 'HINGA'} aria-hidden={decorative || undefined} />
+    </span>
+  );
+}
+
 const LANGUAGE_KEY = 'hinga-primary-language';
 const COPY = {
   en: {
-    name: 'English', languageName: 'English', assistant: 'Agricultural assistant', newChat: 'New conversation',
+    name: 'English', languageName: 'English', assistant: 'Your agricultural advisory assistant', newChat: 'New conversation',
     emptyTitle: 'How can Hinga help today?', welcome: 'Ask about weather, planting, crop care, or farm planning.',
     placeholder: 'Ask a farming question…', thinking: 'Preparing your advice…', translationThinking: 'Preparing your translation…', send: 'Send question',
     locationOn: 'Location available', locationOff: 'Add location for local weather', useLocation: 'Use my location',
@@ -36,7 +45,7 @@ const COPY = {
     safety: 'Advice may be uncertain. Confirm critical decisions locally.',
   },
   lg: {
-    name: 'Luganda', languageName: 'Oluganda', assistant: 'Omuwabuzi w’ebyobulimi', newChat: 'Tandika emboozi empya',
+    name: 'Luganda', languageName: 'Oluganda', assistant: 'Omuwabuzi wo ow’ebyobulimi', newChat: 'Tandika emboozi empya',
     emptyTitle: 'Hinga ekuyambe etya leero?', welcome: 'Buuza ku mbeera y’obudde, okusimba, okulabirira ebirime, oba okuteekateeka ennimiro.',
     placeholder: 'Buuza ekibuuzo ky’ebyobulimi…', thinking: 'Nteekateeka amagezi…', translationThinking: 'Nteekateeka okuvvuunula amagezi go…', send: 'Sindika ekibuuzo',
     locationOn: 'Ekifo kyange kimanyiddwa', locationOff: 'Teekako ekifo olw’obudde bw’omu kitundu', useLocation: 'Kozesa ekifo kyange',
@@ -230,7 +239,7 @@ export default function App() {
     return (
       <main className="onboarding">
         <div className="onboarding-card">
-          <div className="brand-mark"><Leaf className="w-5 h-5" /></div>
+          <HingaLogo className="onboarding-logo" />
           <p className="eyebrow">HINGA AI</p>
           <h1>Farm advice in the language you know best.</h1>
           <p className="onboarding-copy">Choose your primary language. Hinga will remember it on this device.</p>
@@ -254,8 +263,10 @@ export default function App() {
       <section className="conversation-panel">
         <header className="conversation-header">
           <div className="header-brand">
-            <div className="mobile-brand-mark"><Leaf className="w-5 h-5" /></div>
-            <div><h1>Hinga AI</h1><p>{copy.assistant}</p></div>
+            <div className="header-identity">
+              <HingaLogo className="header-logo" />
+              <p>{copy.assistant}</p>
+            </div>
           </div>
           <div className="header-actions">
             <button className="header-new-chat" onClick={startNewConversation} disabled={loading}>
@@ -274,7 +285,7 @@ export default function App() {
           )}
           {messages.length === 0 && (
             <div className="empty-state">
-              <div className="empty-icon"><Leaf className="w-6 h-6" /></div>
+              <HingaLogo className="empty-logo" decorative />
               <h2>{copy.emptyTitle}</h2>
               <p>{copy.welcome}</p>
               <div className="starter-grid">
