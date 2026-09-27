@@ -123,6 +123,26 @@ describe('HINGA backend', () => {
     })).toThrow('Invalid backend configuration: SUNBIRD_BASE_URL: Invalid URL');
   });
 
+  it.each([
+    'https://api.open-meteo.com/v1',
+    'https://weather.test.example/v2',
+  ])('accepts HTTPS Open-Meteo base URL %s', (value) => {
+    expect(loadEnvironment({
+      NODE_ENV: 'test',
+      OPEN_METEO_BASE_URL: value,
+    }).OPEN_METEO_BASE_URL).toBe(value);
+  });
+
+  it.each([
+    'http://api.open-meteo.com/v1',
+    'ftp://api.open-meteo.com/v1',
+  ])('rejects non-HTTPS Open-Meteo base URL %s', (value) => {
+    expect(() => loadEnvironment({
+      NODE_ENV: 'test',
+      OPEN_METEO_BASE_URL: value,
+    })).toThrow('Invalid backend configuration: OPEN_METEO_BASE_URL: Open-Meteo base URL must use HTTPS');
+  });
+
   it('keeps the backend deadline below the frontend timeout', () => {
     expect(() => loadEnvironment({ NODE_ENV: 'test', REQUEST_DEADLINE_MS: '30000' }))
       .toThrow('REQUEST_DEADLINE_MS');

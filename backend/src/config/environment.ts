@@ -45,7 +45,10 @@ const environmentSchema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
   REQUEST_DEADLINE_MS: z.coerce.number().int().min(1000).max(29_000).default(25_000),
-  OPEN_METEO_BASE_URL: z.string().url().default('https://api.open-meteo.com/v1'),
+  OPEN_METEO_BASE_URL: z.string().url().refine(
+    (value) => /^https:\/\//i.test(value),
+    { message: 'Open-Meteo base URL must use HTTPS' },
+  ).default('https://api.open-meteo.com/v1'),
   WEATHER_TIMEOUT_MS: z.coerce.number().int().min(500).max(30_000).default(5000),
   WEATHER_CACHE_TTL_SECONDS: z.coerce.number().int().min(0).max(3600).default(600),
   WEATHER_CACHE_MAX_ENTRIES: z.coerce.number().int().min(1).max(10_000).default(250),
