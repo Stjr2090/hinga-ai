@@ -23,6 +23,8 @@ export type TranslationDiagnosticOutcome = 'success' | 'bypassed' | 'failure';
 export type TranslationErrorCode =
   | 'TRANSLATION_PROVIDER_UNAVAILABLE'
   | 'TRANSLATION_TIMEOUT'
+  | 'REQUEST_DEADLINE_EXCEEDED'
+  | 'CLIENT_CANCELLED'
   | 'TRANSLATION_DIRECTION_UNSUPPORTED';
 
 export interface TranslationDiagnostic {

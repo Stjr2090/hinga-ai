@@ -77,7 +77,16 @@ export function createSunbirdTranslationProvider(
       const sourceProviderCode = getProviderLanguageCode(translationRequest.sourceLanguage, 'sunbird');
       const targetProviderCode = getProviderLanguageCode(translationRequest.targetLanguage, 'sunbird');
 
+      const providerTimeout = AbortSignal.timeout(options.timeoutMilliseconds);
+      const signal = translationRequest.signal
+        ? AbortSignal.any([translationRequest.signal, providerTimeout])
+        : providerTimeout;
+
       try {
+        if (signal.aborted) {
+          throw signal.reason;
+        }
+
         const response = await request(`${options.baseUrl.replace(/\/$/, '')}/tasks/translate`, {
           method: 'POST',
           headers: {
@@ -90,12 +99,7 @@ export function createSunbirdTranslationProvider(
             target_language: targetProviderCode,
             text: translationRequest.text,
           }),
-          signal: translationRequest.signal
-            ? AbortSignal.any([
-                translationRequest.signal,
-                AbortSignal.timeout(options.timeoutMilliseconds),
-              ])
-            : AbortSignal.timeout(options.timeoutMilliseconds),
+          signal,
         });
 
         if (!response.ok) {
@@ -131,16 +135,16 @@ export function createSunbirdTranslationProvider(
           durationMilliseconds: Date.now() - startedAt,
         };
       } catch (error) {
-        const wasAborted = translationRequest.signal?.aborted
-          || (error instanceof DOMException
-            && (error.name === 'AbortError' || error.name === 'TimeoutError'));
-        const providerError = error instanceof TranslationUnavailableError
-          ? error
-          : new TranslationUnavailableError(
-              'sunbird',
-              direction,
-              wasAborted ? 'TRANSLATION_TIMEOUT' : 'TRANSLATION_PROVIDER_UNAVAILABLE',
-            );
+        const errorCode = translationRequest.signal?.aborted
+          && signal.aborted
+          && signal.reason === translationRequest.signal.reason
+          ? translationRequest.signal.reason === 'REQUEST_DEADLINE_EXCEEDED'
+            ? 'REQUEST_DEADLINE_EXCEEDED'
+            : 'CLIENT_CANCELLED'
+          : providerTimeout.aborted && signal.aborted && signal.reason === providerTimeout.reason
+            ? 'TRANSLATION_TIMEOUT'
+            : 'TRANSLATION_PROVIDER_UNAVAILABLE';
+        const providerError = new TranslationUnavailableError('sunbird', direction, errorCode);
         report('failure', providerError.code);
         throw providerError;
       }

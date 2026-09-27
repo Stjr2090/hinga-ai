@@ -7,6 +7,7 @@ import {
   AdvisoryWeatherUnavailableError,
   type AdvisoryService,
 } from '../services/advisory.js';
+import { normalizeFinalAnswer } from '../services/normalizeFinalAnswer.js';
 
 export async function registerChatRoute(
   app: FastifyInstance,
@@ -31,8 +32,8 @@ export async function registerChatRoute(
 
     let result;
     const controller = new AbortController();
-    const deadline = setTimeout(() => controller.abort(), requestDeadlineMilliseconds);
-    const cancelOnDisconnect = () => controller.abort();
+    const deadline = setTimeout(() => controller.abort('REQUEST_DEADLINE_EXCEEDED'), requestDeadlineMilliseconds);
+    const cancelOnDisconnect = () => controller.abort('CLIENT_CANCELLED');
     reply.raw.once('close', cancelOnDisconnect);
 
     try {
@@ -76,7 +77,7 @@ export async function registerChatRoute(
     }
     const response: ChatResponse = {
       requestId: request.id,
-      answer: result.answer,
+      answer: normalizeFinalAnswer(result.answer),
       language: parsedRequest.data.language,
       source: result.source,
       ...(result.sources ? { sources: result.sources } : {}),

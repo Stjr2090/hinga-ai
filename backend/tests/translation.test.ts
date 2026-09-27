@@ -207,7 +207,10 @@ describe('Sunbird translation provider', () => {
     }));
   });
 
-  it('classifies an aborted provider request as a translation timeout', async () => {
+  it.each([
+    ['REQUEST_DEADLINE_EXCEEDED', 'REQUEST_DEADLINE_EXCEEDED'],
+    ['CLIENT_CANCELLED', 'CLIENT_CANCELLED'],
+  ] as const)('classifies a %s abort without exposing text', async (reason, errorCode) => {
     const controller = new AbortController();
     const reportDiagnostic = vi.fn();
     let providerSignal: AbortSignal | undefined;
@@ -229,17 +232,48 @@ describe('Sunbird translation provider', () => {
       signal: controller.signal,
     });
 
-    controller.abort();
+    controller.abort(reason);
 
-    await expect(translation).rejects.toMatchObject({ code: 'TRANSLATION_TIMEOUT' });
+    await expect(translation).rejects.toMatchObject({ code: errorCode });
     expect(providerSignal).not.toBe(controller.signal);
     expect(providerSignal?.aborted).toBe(true);
     expect(reportDiagnostic).toHaveBeenCalledWith(expect.objectContaining({
       provider: 'sunbird',
       outcome: 'failure',
-      errorCode: 'TRANSLATION_TIMEOUT',
+      errorCode,
     }));
     expect(JSON.stringify(reportDiagnostic.mock.calls)).not.toContain('Private farmer question');
+  });
+
+  it('classifies the provider timeout separately from request cancellation', async () => {
+    const controller = new AbortController();
+    const reportDiagnostic = vi.fn();
+    const request = vi.fn().mockImplementation(async (_url, init) => new Promise((_, reject) => {
+      init.signal.addEventListener(
+        'abort',
+        () => reject(init.signal.reason),
+        { once: true },
+      );
+    }));
+    const provider = createSunbirdTranslationProvider({
+      ...options,
+      timeoutMilliseconds: 20,
+      reportDiagnostic,
+    }, request);
+
+    await expect(provider.translate({
+      text: 'Synthetic crop question',
+      sourceLanguage: 'nyn',
+      targetLanguage: 'en',
+      signal: controller.signal,
+    })).rejects.toMatchObject({ code: 'TRANSLATION_TIMEOUT' });
+    expect(controller.signal.aborted).toBe(false);
+    expect(request).toHaveBeenCalledOnce();
+    expect(reportDiagnostic).toHaveBeenCalledWith(expect.objectContaining({
+      direction: 'nyn->en',
+      outcome: 'failure',
+      errorCode: 'TRANSLATION_TIMEOUT',
+    }));
   });
 
   it.each([

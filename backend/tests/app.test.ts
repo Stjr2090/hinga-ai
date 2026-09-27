@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildApp } from '../src/app.js';
 import { loadEnvironment } from '../src/config/environment.js';
 import { AdvisoryUnavailableError, type AdvisoryService } from '../src/services/advisory.js';
+import { createLocalizedAdvisoryService } from '../src/services/localizedAdvisory.js';
 import { createWeatherAwareAdvisoryService } from '../src/services/weatherAwareAdvisory.js';
+import type { TranslationProvider } from '../src/translation/types.js';
 import { WeatherProviderError, type WeatherForecast, type WeatherProvider } from '../src/weather/types.js';
 
 const applications: Awaited<ReturnType<typeof buildApp>>[] = [];
@@ -291,6 +293,67 @@ describe('HINGA backend', () => {
     expect(response.json()).toMatchObject({ language, source: 'groq' });
   });
 
+  it.each([
+    { language: 'lg' as const, question: 'Nsimbe ddi kasooli?', answer: 'Kebera ettaka.' },
+    { language: 'nyn' as const, question: 'Mbiibire ebicoori eriizooba?', answer: 'Rinda enjura.' },
+  ])('keeps $language translation, weather attribution, and content out of logs', async ({ language, question, answer }) => {
+    const englishQuestion = 'Should I plant maize today?';
+    const englishAnswer = 'Wait for safe weather.';
+    const translate = vi.fn()
+      .mockResolvedValueOnce({ translatedText: englishQuestion })
+      .mockResolvedValueOnce({ translatedText: answer });
+    const generate = vi.fn().mockResolvedValue({ answer: englishAnswer, source: 'groq' });
+    const getForecast = vi.fn().mockResolvedValue(weatherForecast);
+    const translationProvider: TranslationProvider = { provider: 'sunbird', translate };
+    const advisoryService = createLocalizedAdvisoryService(
+      createWeatherAwareAdvisoryService({ generate }, { getForecast }),
+      translationProvider,
+    );
+    const logLines: string[] = [];
+    const environment = loadEnvironment({ NODE_ENV: 'test', LOG_LEVEL: 'info' });
+    const app = await buildApp({
+      environment,
+      advisoryService,
+      weatherProvider: { getForecast },
+      loggerStream: { write: (message) => logLines.push(message) },
+    });
+    applications.push(app);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/chat',
+      payload: { message: question, language, location: weatherForecast.coordinates },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      requestId: expect.any(String),
+      answer,
+      language,
+      source: 'groq',
+      sources: [{ provider: 'open-meteo', attribution: 'Weather data by Open-Meteo.com' }],
+    });
+    expect(translate).toHaveBeenCalledTimes(2);
+    expect(translate).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      text: question, sourceLanguage: language, targetLanguage: 'en',
+    }));
+    expect(generate).toHaveBeenCalledOnce();
+    expect(generate).toHaveBeenCalledWith(expect.objectContaining({
+      message: englishQuestion,
+      language: 'en',
+      weather: expect.objectContaining({ forecast: weatherForecast }),
+    }));
+    expect(translate).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      text: englishAnswer, sourceLanguage: 'en', targetLanguage: language,
+    }));
+    expect(getForecast).toHaveBeenCalledOnce();
+    const logs = logLines.join('');
+    expect(logs).toContain(response.json().requestId);
+    for (const privateContent of [question, englishQuestion, englishAnswer, answer, '0.3476', '32.5825']) {
+      expect(logs).not.toContain(privateContent);
+    }
+  });
+
   it('returns a safe response when the advisory provider is unavailable', async () => {
     const advisoryService: AdvisoryService = {
       async generate() {
@@ -340,6 +403,7 @@ describe('HINGA backend', () => {
 
     expect(response.statusCode).toBe(503);
     expect(receivedSignal?.aborted).toBe(true);
+    expect(receivedSignal?.reason).toBe('REQUEST_DEADLINE_EXCEEDED');
   });
 
   it('returns a safe not-found response', async () => {

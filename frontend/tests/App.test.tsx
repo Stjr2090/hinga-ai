@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -55,6 +55,64 @@ describe('App prompt flow', () => {
     expect(await screen.findByText('Service temporarily unavailable.')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeVisible();
     expect(screen.getByText('Your agricultural advisory assistant')).toBeVisible();
+  });
+
+  it('renders multiline markup-like answers as inert text', async () => {
+    const { App, mockedAssistant } = await loadFrontend();
+    const answer = '**Plant carefully**\n<strong>Keep rows clear</strong>\n<script>window.__hingaExecuted = true</script>\n{"html":"<img src=x>"}';
+    mockedAssistant.mockResolvedValue({ requestId: 'safe-text', answer, language: 'en', source: 'groq' });
+    const user = userEvent.setup();
+
+    render(<App />);
+    await user.type(screen.getByPlaceholderText(/Ask a farming question/), 'Show safe formatting');
+    await user.click(screen.getByRole('button', { name: 'Send question' }));
+
+    const response = await screen.findByText((_content, element) => (
+      element?.classList.contains('message-content') === true && element.textContent === answer
+    ));
+    expect(response.textContent).toBe(answer);
+    expect(response.querySelector('strong, script, img')).toBeNull();
+    expect((window as Window & { __hingaExecuted?: boolean }).__hingaExecuted).toBeUndefined();
+  });
+
+  it.each([
+    {
+      language: 'lg',
+      placeholder: /Buuza ekibuuzo/,
+      send: 'Sindika ekibuuzo',
+      loading: 'Nteekateeka okuvvuunula amagezi go…',
+      failure: 'Waliwo ekitagenze bulungi. Ddamu ogezeeko.',
+      retry: 'Ddamu ogezeeko',
+    },
+    {
+      language: 'nyn',
+      placeholder: /Buuza ekibuuzo/,
+      send: 'Oheereze ekibuuzo',
+      loading: 'Okutebeekanisa okuvunuura kwawe…',
+      failure: 'Hariho ekintu ekyagyenda kubi. Nyabura we gezaho ogaruke.',
+      retry: 'Gyezaho',
+    },
+  ])('clears loading and shows the safe $language timeout state', async ({ language, placeholder, send, loading, failure, retry }) => {
+    localStorage.setItem('hinga-primary-language', language);
+    const { App, mockedAssistant, AssistantServiceError } = await loadFrontend();
+    let rejectRequest!: (reason: unknown) => void;
+    mockedAssistant.mockImplementation(() => new Promise((_resolve, reject) => { rejectRequest = reject; }));
+    const user = userEvent.setup();
+
+    render(<App />);
+    await user.type(screen.getByPlaceholderText(placeholder), 'Timeout check');
+    await user.click(screen.getByRole('button', { name: send }));
+    expect(screen.getByText(loading)).toBeVisible();
+
+    await act(async () => {
+      rejectRequest(new AssistantServiceError('HINGA is taking longer than expected. Please retry your question.', 'REQUEST_TIMEOUT'));
+    });
+
+    expect(await screen.findByText(failure)).toBeVisible();
+    expect(screen.queryByText(loading)).not.toBeInTheDocument();
+    expect(screen.queryByText('HINGA is taking longer than expected. Please retry your question.')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: retry })).toBeVisible();
+    expect(document.querySelector('.message-assistant .message-content')).toBeNull();
   });
 
   it('translates the complete chat interface when Luganda is selected', async () => {
